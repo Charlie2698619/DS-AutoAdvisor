@@ -41,13 +41,13 @@
 
 | **Functionality**               | **Tool Stack**                                     |
 |--------------------------------|---------------------------------------------------|
-| **Data Profiling & Validation** | ydata-quality, Great Expectations               |
+| **Data Profiling & Validation** | ydata-quality, Sweetviz, Missingno, Pandera               |
 | **Correction Advisor**          | Scikit-learn Imputer, custom correction scripts |
 | **AutoML Advisor**              | PyCaret, AutoGluon                              |
 | **Pipeline Orchestration**      | Prefect                                         |
 | **Model Monitoring**            | EvidentlyAI, MLflow                             |
 | **Dashboard**                   | Streamlit                                       |
-| **Software Development**        | GitHub Actions, Poetry, Docker (optional)       |
+| **Software Development**        | GitHub Actions, uv, Docker (optional)       |
 
 ## 🚦 Project Milestones & Roadmap
 
