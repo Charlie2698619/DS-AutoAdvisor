@@ -1,0 +1,274 @@
+schema_type: dataframe
+version: 0.25.0
+columns:
+  age:
+    title: null
+    description: null
+    dtype: int64
+    nullable: false
+    checks:
+    - value: 18.0
+      options:
+        check_name: greater_than_or_equal_to
+        raise_warning: false
+        ignore_na: true
+    - value: 95.0
+      options:
+        check_name: less_than_or_equal_to
+        raise_warning: false
+        ignore_na: true
+    unique: false
+    coerce: false
+    required: true
+    regex: false
+  job:
+    title: null
+    description: null
+    dtype: object
+    nullable: false
+    checks: null
+    unique: false
+    coerce: false
+    required: true
+    regex: false
+  marital:
+    title: null
+    description: null
+    dtype: object
+    nullable: false
+    checks: null
+    unique: false
+    coerce: false
+    required: true
+    regex: false
+  education:
+    title: null
+    description: null
+    dtype: object
+    nullable: false
+    checks: null
+    unique: false
+    coerce: false
+    required: true
+    regex: false
+  default:
+    title: null
+    description: null
+    dtype: object
+    nullable: false
+    checks: null
+    unique: false
+    coerce: false
+    required: true
+    regex: false
+  balance:
+    title: null
+    description: null
+    dtype: int64
+    nullable: false
+    checks:
+    - value: -8019.0
+      options:
+        check_name: greater_than_or_equal_to
+        raise_warning: false
+        ignore_na: true
+    - value: 102127.0
+      options:
+        check_name: less_than_or_equal_to
+        raise_warning: false
+        ignore_na: true
+    unique: false
+    coerce: false
+    required: true
+    regex: false
+  housing:
+    title: null
+    description: null
+    dtype: object
+    nullable: false
+    checks: null
+    unique: false
+    coerce: false
+    required: true
+    regex: false
+  loan:
+    title: null
+    description: null
+    dtype: object
+    nullable: false
+    checks: null
+    unique: false
+    coerce: false
+    required: true
+    regex: false
+  contact:
+    title: null
+    description: null
+    dtype: object
+    nullable: false
+    checks: null
+    unique: false
+    coerce: false
+    required: true
+    regex: false
+  day:
+    title: null
+    description: null
+    dtype: int64
+    nullable: false
+    checks:
+    - value: 1.0
+      options:
+        check_name: greater_than_or_equal_to
+        raise_warning: false
+        ignore_na: true
+    - value: 31.0
+      options:
+        check_name: less_than_or_equal_to
+        raise_warning: false
+        ignore_na: true
+    unique: false
+    coerce: false
+    required: true
+    regex: false
+  month:
+    title: null
+    description: null
+    dtype: object
+    nullable: false
+    checks: null
+    unique: false
+    coerce: false
+    required: true
+    regex: false
+  duration:
+    title: null
+    description: null
+    dtype: int64
+    nullable: false
+    checks:
+    - value: 0.0
+      options:
+        check_name: greater_than_or_equal_to
+        raise_warning: false
+        ignore_na: true
+    - value: 4918.0
+      options:
+        check_name: less_than_or_equal_to
+        raise_warning: false
+        ignore_na: true
+    unique: false
+    coerce: false
+    required: true
+    regex: false
+  campaign:
+    title: null
+    description: null
+    dtype: int64
+    nullable: false
+    checks:
+    - value: 1.0
+      options:
+        check_name: greater_than_or_equal_to
+        raise_warning: false
+        ignore_na: true
+    - value: 63.0
+      options:
+        check_name: less_than_or_equal_to
+        raise_warning: false
+        ignore_na: true
+    unique: false
+    coerce: false
+    required: true
+    regex: false
+  pdays:
+    title: null
+    description: null
+    dtype: int64
+    nullable: false
+    checks:
+    - value: -1.0
+      options:
+        check_name: greater_than_or_equal_to
+        raise_warning: false
+        ignore_na: true
+    - value: 871.0
+      options:
+        check_name: less_than_or_equal_to
+        raise_warning: false
+        ignore_na: true
+    unique: false
+    coerce: false
+    required: true
+    regex: false
+  previous:
+    title: null
+    description: null
+    dtype: int64
+    nullable: false
+    checks:
+    - value: 0.0
+      options:
+        check_name: greater_than_or_equal_to
+        raise_warning: false
+        ignore_na: true
+    - value: 275.0
+      options:
+        check_name: less_than_or_equal_to
+        raise_warning: false
+        ignore_na: true
+    unique: false
+    coerce: false
+    required: true
+    regex: false
+  poutcome:
+    title: null
+    description: null
+    dtype: object
+    nullable: false
+    checks: null
+    unique: false
+    coerce: false
+    required: true
+    regex: false
+  y:
+    title: null
+    description: null
+    dtype: object
+    nullable: false
+    checks: null
+    unique: false
+    coerce: false
+    required: true
+    regex: false
+checks: null
+index:
+- title: null
+  description: null
+  dtype: int64
+  nullable: false
+  checks:
+  - value: 0.0
+    options:
+      check_name: greater_than_or_equal_to
+      raise_warning: false
+      ignore_na: true
+  - value: 45210.0
+    options:
+      check_name: less_than_or_equal_to
+      raise_warning: false
+      ignore_na: true
+  name: null
+  unique: false
+  coerce: false
+dtype: null
+coerce: true
+strict: false
+name: null
+ordered: false
+unique: null
+report_duplicates: all
+unique_column_names: false
+add_missing_columns: false
+title: null
+description: null

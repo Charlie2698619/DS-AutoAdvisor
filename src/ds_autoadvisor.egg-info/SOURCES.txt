@@ -1,0 +1,7 @@
+README.md
+pyproject.toml
+src/ds_autoadvisor.egg-info/PKG-INFO
+src/ds_autoadvisor.egg-info/SOURCES.txt
+src/ds_autoadvisor.egg-info/dependency_links.txt
+src/ds_autoadvisor.egg-info/requires.txt
+src/ds_autoadvisor.egg-info/top_level.txt
