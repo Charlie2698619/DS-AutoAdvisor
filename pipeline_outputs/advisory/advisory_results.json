@@ -1,0 +1,125 @@
+{
+  "assumptions": {
+    "normality": {
+      "passed": false,
+      "failed_columns": [
+        "tenure",
+        "MonthlyCharges"
+      ],
+      "tested_columns": [
+        "tenure",
+        "MonthlyCharges"
+      ],
+      "column_results": {
+        "tenure": {
+          "statistic": 0.9017105578429577,
+          "p_value": 6.399428300503791e-49,
+          "n": 5000,
+          "passed": "False",
+          "skewness": 0.25862249898585343,
+          "kurtosis": -1.382627555777142
+        },
+        "MonthlyCharges": {
+          "statistic": 0.918881206965218,
+          "p_value": 9.378759493044837e-46,
+          "n": 5000,
+          "passed": "False",
+          "skewness": -0.09619089928171967,
+          "kurtosis": -1.3146794016760337
+        }
+      },
+      "skipped": [
+        {
+          "col": "SeniorCitizen",
+          "reason": "Too few non-NA or unique values"
+        }
+      ],
+      "method_used": "shapiro"
+    },
+    "homoscedasticity": null,
+    "multicollinearity": null,
+    "linearity": null,
+    "independence": null,
+    "class_balance": {
+      "imbalance": false,
+      "distribution": {
+        "No": 0.763938315539739,
+        "Yes": 0.23606168446026096
+      },
+      "major_class": "No",
+      "major_class_prop": 0.763938315539739,
+      "minor_class": "Yes",
+      "minor_class_prop": 0.23606168446026096,
+      "imbalance_ratio": 3.2361809045226133
+    },
+    "recommendations": [
+      "\ud83d\udd04 Non-normal features detected: ['tenure', 'MonthlyCharges']. Consider log, sqrt, or Box-Cox transformations."
+    ],
+    "meta": {
+      "columns": [
+        "customerID",
+        "gender",
+        "SeniorCitizen",
+        "Partner",
+        "Dependents",
+        "tenure",
+        "PhoneService",
+        "MultipleLines",
+        "InternetService",
+        "OnlineSecurity",
+        "OnlineBackup",
+        "DeviceProtection",
+        "TechSupport",
+        "StreamingTV",
+        "StreamingMovies",
+        "Contract",
+        "PaperlessBilling",
+        "PaymentMethod",
+        "MonthlyCharges",
+        "TotalCharges",
+        "Churn"
+      ],
+      "n_rows": 5901,
+      "n_num_cols": 3,
+      "n_cat_cols": 18,
+      "target": "Churn",
+      "time_col": null
+    },
+    "warnings": [
+      "Normality skipped: ['SeniorCitizen']"
+    ],
+    "errors": [],
+    "config_used": {
+      "normality_alpha": 0.05,
+      "normality_max_sample": 5000,
+      "normality_method": "shapiro",
+      "homo_alpha": 0.05,
+      "homo_method": "breusch_pagan",
+      "vif_threshold": 10.0,
+      "correlation_threshold": 0.95,
+      "imbalance_threshold": 0.9,
+      "min_class_size": 30,
+      "linearity_alpha": 0.05,
+      "independence_alpha": 0.05,
+      "chunk_size": null,
+      "enable_sampling": true,
+      "max_features_vif": 50,
+      "verbose": true,
+      "generate_recommendations": true
+    }
+  },
+  "target_type": "classification",
+  "model_recommendations": {
+    "recommended": [
+      "RandomForestClassifier",
+      "GradientBoostingClassifier",
+      "ExtraTreesClassifier"
+    ],
+    "reason": "Fallback to robust classifiers (assumptions violated but classes balanced).",
+    "violated": [
+      "normality"
+    ],
+    "target_type": "classification"
+  },
+  "timestamp": "2025-07-30T13:35:40.724139"
+}

@@ -25,4 +25,7 @@ dependencies = [
     "plotly>=5.24.1",
     "numpy>=2.0",
     "pandas>=2.2.3",
+    "shap>=0.48.0",
+    "umap>=0.1.1",
+    "joblib>=1.5.1",
 ]

@@ -1,0 +1,305 @@
+{
+  "analysis_timestamp": "2025-07-30T13:42:21.028824",
+  "target_type": "classification",
+  "models_analyzed": [
+    "GradientBoostingClassifier",
+    "XGBClassifier"
+  ],
+  "comparison_summary": {
+    "performance": {
+      "GradientBoostingClassifier": {
+        "accuracy": 0.0,
+        "error_rate": 1.0
+      },
+      "XGBClassifier": {
+        "accuracy": 0.0,
+        "error_rate": 1.0
+      }
+    },
+    "stability": {
+      "GradientBoostingClassifier": {
+        "overall_stability": 0.0,
+        "execution_time": 19.439513444900513
+      },
+      "XGBClassifier": {
+        "overall_stability": 0.0,
+        "execution_time": 4.189241170883179
+      }
+    },
+    "interpretability": {
+      "GradientBoostingClassifier": {
+        "interpretability_score": 0.0,
+        "has_shap": true
+      },
+      "XGBClassifier": {
+        "interpretability_score": 0.0,
+        "has_shap": true
+      }
+    }
+  },
+  "detailed_results": {
+    "GradientBoostingClassifier": {
+      "performance_metrics": {
+        "accuracy": 0.0,
+        "error_rate": 1.0
+      },
+      "stability_metrics": {
+        "baseline_score": 0.0,
+        "noise_stability": {
+          "noise_levels": [
+            0.01,
+            0.05,
+            0.1,
+            0.2
+          ],
+          "scores": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "score_retentions": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "avg_score_retention": 0.0
+        },
+        "dropout_stability": {
+          "dropout_rates": [
+            0.05,
+            0.1,
+            0.2,
+            0.3
+          ],
+          "scores": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "score_retentions": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "avg_score_retention": 0.0
+        },
+        "bootstrap_stability": {
+          "scores": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "score_mean": 0.0,
+          "score_std": 0.0,
+          "score_std_normalized": 0.0
+        },
+        "prediction_consistency": {
+          "avg_correlation": 1.0,
+          "consistency_score": 1.0
+        },
+        "overall_stability": 0.0
+      },
+      "interpretability_scores": {
+        "permutation_importance": {
+          "error": "Labels in y_true and y_pred should be of the same type. Got y_true=['No' 'Yes'] and y_pred=[0 1]. Make sure that the predictions provided by the classifier coincides with the true labels."
+        },
+        "shap_analysis": null,
+        "feature_interactions": {
+          "error": "could not convert string to float: '7590-VHVEG'"
+        },
+        "importance_comparison": {
+          "error": "No permutation importance available"
+        },
+        "interpretability_score": 0.0
+      },
+      "execution_time": 19.439513444900513,
+      "plots_generated": [
+        "evaluation_results/GradientBoostingClassifier_learning_curves.html",
+        "evaluation_results/GradientBoostingClassifier_feature_importance.html",
+        "evaluation_results/GradientBoostingClassifier_stability.html"
+      ]
+    },
+    "XGBClassifier": {
+      "performance_metrics": {
+        "accuracy": 0.0,
+        "error_rate": 1.0
+      },
+      "stability_metrics": {
+        "baseline_score": 0.0,
+        "noise_stability": {
+          "noise_levels": [
+            0.01,
+            0.05,
+            0.1,
+            0.2
+          ],
+          "scores": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "score_retentions": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "avg_score_retention": 0.0
+        },
+        "dropout_stability": {
+          "dropout_rates": [
+            0.05,
+            0.1,
+            0.2,
+            0.3
+          ],
+          "scores": [
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "score_retentions": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "avg_score_retention": 0.0
+        },
+        "bootstrap_stability": {
+          "scores": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "score_mean": 0.0,
+          "score_std": 0.0,
+          "score_std_normalized": 0.0
+        },
+        "prediction_consistency": {
+          "avg_correlation": 0.9999999999999997,
+          "consistency_score": 0.9999999999999997
+        },
+        "overall_stability": 0.0
+      },
+      "interpretability_scores": {
+        "permutation_importance": {
+          "error": "Labels in y_true and y_pred should be of the same type. Got y_true=['No' 'Yes'] and y_pred=[0 1]. Make sure that the predictions provided by the classifier coincides with the true labels."
+        },
+        "shap_analysis": null,
+        "feature_interactions": {
+          "error": "could not convert string to float: '7590-VHVEG'"
+        },
+        "importance_comparison": {
+          "error": "No permutation importance available"
+        },
+        "interpretability_score": 0.0
+      },
+      "execution_time": 4.189241170883179,
+      "plots_generated": [
+        "evaluation_results/XGBClassifier_feature_importance.html",
+        "evaluation_results/XGBClassifier_stability.html"
+      ]
+    }
+  }
+}

@@ -18,9 +18,10 @@ from sklearn.metrics import (
     accuracy_score, f1_score, roc_auc_score, 
     classification_report, confusion_matrix
 )
-from sklearn.preprocessing import StandardScaler, LabelEncoder
+from sklearn.preprocessing import StandardScaler, LabelEncoder, MinMaxScaler, RobustScaler
 from sklearn.pipeline import Pipeline
 from sklearn.compose import ColumnTransformer
+from sklearn.preprocessing import OneHotEncoder, OrdinalEncoder, StandardScaler
 
 # Models
 from sklearn.linear_model import LinearRegression, LogisticRegression, Ridge, Lasso, ElasticNet
@@ -84,6 +85,10 @@ class TrainerConfig:
     parallel_jobs: int = -1
     max_training_time_minutes: Optional[int] = 30
     memory_limit_gb: Optional[float] = None
+    
+    # Encoding and preprocessing
+    encoding_strategy: str = "onehot"  # "onehot", "label", "ordinal"
+    scaling_strategy: str = "standard"  # "standard", "minmax", "robust", "none"
     
     # Output
     save_models: bool = True
@@ -321,6 +326,21 @@ class EnhancedModelTrainer:
             return "classification"
         return "regression"
     
+    def _get_scaler(self):
+        """Get scaler based on configuration"""
+        if self.config.scaling_strategy == "standard":
+            return StandardScaler()
+        elif self.config.scaling_strategy == "minmax":
+            return MinMaxScaler()
+        elif self.config.scaling_strategy == "robust":
+            return RobustScaler()
+        elif self.config.scaling_strategy == "none":
+            return None
+        else:
+            if self.config.verbose:
+                print(f"⚠️ Unknown scaling strategy '{self.config.scaling_strategy}', using StandardScaler")
+            return StandardScaler()
+    
     def prepare_data(
         self, 
         df: pd.DataFrame, 
@@ -338,24 +358,67 @@ class EnhancedModelTrainer:
             le = LabelEncoder()
             y = pd.Series(le.fit_transform(y), index=y.index)
         
-        # Ensure all features are numeric
-        numeric_cols = X.select_dtypes(include=[np.number]).columns
-        if len(numeric_cols) < len(X.columns):
-            dropped = X.columns.difference(numeric_cols).tolist()
-            if self.config.verbose:
-                print(f"⚠️ Dropping non-numeric columns: {dropped}")
-            X = X[numeric_cols]
+        categorical_cols = X.select_dtypes(include=['object', 'category']).columns.to_list()
+        numeric_cols = X.select_dtypes(include=[np.number]).columns.to_list()        
         
-        return X, y, target_type
+        # Get scaler based on configuration
+        scaler = self._get_scaler()
+        
+        preprocessor = None
+        
+        if self.config.encoding_strategy == "label":
+            # Label Encode categoricals
+            for col in categorical_cols:
+                if self.config.verbose:
+                    print(f"🔄 Label encoding column: {col}")
+                le = LabelEncoder()
+                X[col] = le.fit_transform(X[col].astype(str))
+            preprocessor = None
+        elif self.config.encoding_strategy == "onehot":
+            # Defer to ColumnTransformer during pipeline creation
+            if self.config.verbose:
+                print(f"🔧 OneHot encoding deferred to pipeline for columns: {categorical_cols}")
+            preprocessor = ColumnTransformer(
+                transformers=[
+                    ('num', scaler, numeric_cols),
+                    ('cat', OneHotEncoder(handle_unknown='ignore'), categorical_cols)
+                ]
+            )
+        elif self.config.encoding_strategy == "ordinal":
+            # Ordinal encoding for categoricals
+            if self.config.verbose:
+                print(f"🔧 Ordinal encoding deferred to pipeline for columns: {categorical_cols}")
+            preprocessor = ColumnTransformer(
+                transformers=[
+                    ('num', scaler, numeric_cols),
+                    ('cat', OrdinalEncoder(handle_unknown='use_encoded_value', unknown_value=-1), categorical_cols)
+                ]
+            )
+        else:
+            raise ValueError(f"Unknown encoding strategy: {self.config.encoding_strategy}")
+
+        return X, y, target_type, preprocessor
+     
     
-    def create_pipeline(self, model_class, target_type: str) -> Pipeline:
+    def create_pipeline(self, model_class, target_type: str, preprocessor=None) -> Pipeline:
         """Create preprocessing pipeline"""
-        # For now, simple scaling pipeline
-        # Could be enhanced with more sophisticated preprocessing
-        steps = [
-            ('scaler', StandardScaler()),
-            ('model', model_class())
-        ]
+        if preprocessor is not None:
+            steps = [
+                ('preprocessor', preprocessor),
+                ('model', model_class())
+            ]
+        else:
+            # Fall back to configurable scaler
+            scaler = self._get_scaler()
+            if scaler is not None:
+                steps = [
+                    ('scaler', scaler),
+                    ('model', model_class())
+                ]
+            else:
+                steps = [
+                    ('model', model_class())
+                ]
         return Pipeline(steps)
     
     def tune_hyperparameters(
@@ -526,7 +589,8 @@ class EnhancedModelTrainer:
         y_test: pd.Series,
         X_val: Optional[pd.DataFrame],
         y_val: Optional[pd.Series],
-        target_type: str
+        target_type: str,
+        preprocessor=None
     ) -> ModelResult:
         """Train a single model with comprehensive evaluation"""
         
@@ -534,7 +598,7 @@ class EnhancedModelTrainer:
         
         try:
             # Create pipeline
-            pipeline = self.create_pipeline(model_config["model"], target_type)
+            pipeline = self.create_pipeline(model_config["model"], target_type, preprocessor)
             
             # Hyperparameter tuning
             best_params = {}
@@ -600,12 +664,13 @@ class EnhancedModelTrainer:
             print("🚀 Starting comprehensive model training...")
         
         # Prepare data
-        X, y, target_type = self.prepare_data(df, target)
+        X, y, target_type, preprocessor = self.prepare_data(df, target)
         
         if self.config.verbose:
             print(f"📊 Dataset: {X.shape[0]} samples, {X.shape[1]} features")
             print(f"🎯 Target type: {target_type}")
-        
+            print(f"🔧 Encoding strategy: {self.config.encoding_strategy}")
+            print(f"📏 Scaling strategy: {self.config.scaling_strategy}")
         # Split data
         X_temp, X_test, y_temp, y_test = train_test_split(
             X, y, 
@@ -664,7 +729,7 @@ class EnhancedModelTrainer:
             result = self.train_single_model(
                 model_name, model_config,
                 X_train, X_test, y_train, y_test,
-                X_val, y_val, target_type
+                X_val, y_val, target_type, preprocessor
             )
             
             if result:
@@ -776,7 +841,15 @@ class EnhancedModelTrainer:
                 "total_models_trained": len(results),
                 "target_type": target_type,
                 "best_model": best_models[0].name if best_models else None,
-                "total_training_time": sum(r.training_time for r in results)
+                "total_training_time": sum(r.training_time for r in results),
+                "encoding_strategy": self.config.encoding_strategy,
+                "preprocessing_method": "ColumnTransformer" if self.config.encoding_strategy in ["onehot", "ordinal"] else "In-place LabelEncoder"
+            },
+            "preprocessing_details": {
+                "encoding_strategy": self.config.encoding_strategy,
+                "scaling_strategy": self.config.scaling_strategy,
+                "scaling_method": self.config.scaling_strategy.title() + "Scaler" if self.config.scaling_strategy != "none" else "No scaling",
+                "pipeline_structure": "preprocessor -> model" if self.config.encoding_strategy in ["onehot", "ordinal"] else "scaler -> model"
             },
             "model_rankings": [],
             "detailed_results": {},
@@ -838,7 +911,7 @@ def train_model(
     trainer = EnhancedModelTrainer(config)
     
     # Prepare data
-    X, y, inferred_type = trainer.prepare_data(df, target)
+    X, y, inferred_type, preprocessor = trainer.prepare_data(df, target)
     target_type = target_type or inferred_type
     
     # Get model config
@@ -860,7 +933,7 @@ def train_model(
     result = trainer.train_single_model(
         model_name, model_config,
         X_train, X_test, y_train, y_test,
-        None, None, target_type
+        None, None, target_type, preprocessor
     )
     
     if not result:
@@ -882,9 +955,9 @@ def train_model(
 if __name__ == "__main__":
     if len(sys.argv) < 3:
         print("Enhanced Trainer Usage:")
-        print("  Single model: python trainer_enhanced.py <csv> <target> <model_name>")
-        print("  All models:   python trainer_enhanced.py <csv> <target> --all")
-        print("  Config file:  python trainer_enhanced.py <csv> <target> --config <config.json>")
+        print("  Single model: python trainer.py <csv> <target> <model_name>")
+        print("  All models:   python trainer.py <csv> <target> --all")
+        print("  Config file:  python trainer.py <csv> <target> --config <config.json>")
         sys.exit(1)
     
     df = pd.read_csv(sys.argv[1])

@@ -1,0 +1,37 @@
+{
+  "pipeline_execution": {
+    "success": false,
+    "execution_time": 0.0,
+    "timestamp": "2025-07-30T14:54:26.134913",
+    "config_used": "config/unified_config.yaml",
+    "error": "Pipeline aborted by user"
+  },
+  "stages_executed": 1,
+  "completed_stages": [
+    "profiling"
+  ],
+  "stage_results": [
+    {
+      "stage": "profiling",
+      "success": true,
+      "execution_time": 67.225946,
+      "outputs": 3,
+      "error": null
+    }
+  ],
+  "human_interventions": 1,
+  "human_decisions": [
+    {
+      "stage": "profiling",
+      "decision": "abort",
+      "timestamp": "2025-07-30T14:54:26.134862",
+      "stage_success": true,
+      "execution_time": 67.225946
+    }
+  ],
+  "final_outputs": [
+    "docs/data_profiling_report.html",
+    "docs/data_schema.yaml",
+    "docs/missing_data_matrix.png"
+  ]
+}

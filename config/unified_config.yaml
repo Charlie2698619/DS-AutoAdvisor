@@ -1,0 +1,356 @@
+# DS-AutoAdvisor Unified Configuration
+# Complete pipeline configuration for all stages
+#
+# Usage: Modify these settings to control the entire pipeline behavior
+# All your existing scripts will use these configurations
+#
+# DATA FLOW:
+# 1. Raw Data (global.data_input_path) → Profiling Stage
+# 2. Raw Data (global.data_input_path) → Data Cleaning Stage → Cleaned Data (data_cleaning.output_path)
+# 3. Cleaned Data → ML Advisory Stage 
+# 4. Cleaned Data → Model Training Stage → Trained Models
+# 5. Cleaned Data + Trained Models → Model Evaluation Stage
+
+# =============================================================================
+# GLOBAL SETTINGS - These settings are used across all stages
+# =============================================================================
+global:
+  project_name: "DS-AutoAdvisor Pipeline"
+  version: "1.0"
+  
+  # Environment setting for industrial features
+  environment: "development"  # "development", "staging", "production"
+  
+  # Data settings (used by all stages)
+  data_input_path: "data/telco_churn_data.csv"  # Primary data source
+  target_column: "Churn"                        # Target variable name
+  csv_delimiter: ","                            # CSV separator for data files
+  csv_encoding: "utf-8"                         # File encoding
+  random_state: 42                              # Reproducibility seed
+  
+  # Output settings
+  output_base_dir: "pipeline_outputs"
+  
+  # Human intervention settings
+  human_intervention:
+    enabled: true
+    mode: "interactive"  # "interactive", "semi_automated", "fully_automated"
+    
+    # Stages that require approval (only checked in semi_automated mode)
+    approval_required: ["data_cleaning", "ml_advisory", "model_training"]
+    
+    # Confidence thresholds for semi_automated mode
+    confidence_thresholds:
+      data_cleaning: 0.8
+      ml_advisory: 0.85
+      model_training: 0.9
+      model_evaluation: 0.95
+
+# =============================================================================
+# STAGE 1: DATA PROFILING (profiling_1/data_profiler.py)
+# =============================================================================
+profiling:
+  # Input/Output paths
+  # Note: input_path is automatically set to global.data_input_path by pipeline
+  output_dir: "docs"
+  
+  # Data loading settings
+  # Note: csv_delimiter and csv_encoding are automatically set from global settings by pipeline
+  csv_header: 0
+  
+  # Report generation
+  report_title: "Telco Data Analysis Report"
+  generate_html_report: true
+  generate_missing_plot: true
+  generate_schema: true
+  
+  # Profiling tools to use
+  use_ydata_profiling: true
+  use_sweetviz: false
+  use_missingno: false
+  use_pandera_schema: false 
+  
+  # Human review triggers
+  human_review_triggers:
+    missing_data_threshold: 0.25  # Review if >25% missing
+    outlier_threshold: 0.05       # Review if >5% outliers
+    suspicious_patterns: true
+
+# =============================================================================
+# STAGE 2: DATA CORRECTION (correction_2/)
+# =============================================================================
+data_cleaning:
+  # Input/Output
+  # Note: input_path is automatically set to global.data_input_path by pipeline
+  # Output: This cleaned data becomes input for all subsequent stages
+  output_path: "data/cleaned_data.csv"
+  log_file: "docs/cleaning_log.json"
+  
+  # CSV Output Format Settings
+  # Note: output_delimiter is automatically set to global.csv_delimiter by pipeline for consistency
+  output_delimiter: ","  # This will be overridden by global.csv_delimiter
+  output_quoting: 1  # csv.QUOTE_ALL
+  output_quotechar: '"' 
+  output_escapechar: null
+  output_encoding: "utf-8"
+  output_lineterminator: "\n"
+  output_doublequote: true
+  
+  # Duplicate handling
+  remove_duplicates: true
+  duplicate_subset: null  # null = all columns
+  
+  # Low variance features
+  remove_low_variance: true
+  low_variance_thresh: 1
+  
+  # Missing data handling
+  drop_high_miss_cols: true
+  missing_col_thresh: 0.3     # Drop columns with >30% missing
+  drop_high_miss_rows: false
+  missing_row_thresh: 0.5     # Drop rows with >50% missing
+  
+  # Imputation strategies
+  impute_num: "auto"          # auto, mean, median, knn, iterative
+  impute_cat: "auto"          # auto, most_frequent, constant
+  impute_const: 0
+  
+  # Outlier detection and removal
+  outlier_removal: true
+  outlier_method: "iqr"       # iqr, isoforest, zscore
+  iqr_factor: 1.5
+  iforest_contam: 0.01
+  zscore_thresh: 3.0
+  
+  # Feature transformations
+  skew_correction: true
+  skew_thresh: 1.0
+  skew_method: "yeo-johnson" 
+  
+  # Scaling
+  scaling: "standard"         # standard, minmax, robust, none
+  
+  # Encoding
+  encoding: "onehot"          # onehot, label, ordinal, target
+  max_cardinality: 20
+  
+  # Date handling
+  date_parse: true
+  extract_date_features: true
+  date_formats: null
+  
+  # Type optimization
+  downcast_types: true
+  
+  # Text handling
+  text_policy: "warn"         # warn, drop, ignore, vectorize
+  text_vectorizer: "tfidf"    # tfidf, count, hash
+  
+  # Advanced options
+  # Note: target_column is automatically set to global.target_column by pipeline
+  feature_selection: false
+  correlation_thresh: 0.95
+  vif_thresh: 10.0
+  
+  # Performance
+  n_jobs: -1 
+  
+  # Human intervention points
+  human_review:
+    outlier_count_threshold: 100
+    high_missing_review: true
+    unusual_distributions: true
+    correlation_issues: true
+
+# =============================================================================
+# STAGE 3: ML ADVISORY (advisor_3/)
+# =============================================================================
+ml_advisory:
+  # Assumption Testing Configuration
+  assumption_testing:
+    # Normality testing
+    normality_alpha: 0.05
+    normality_max_sample: 5000
+    normality_method: "shapiro"  # shapiro, anderson, jarque_bera
+    
+    # Homoscedasticity
+    homo_alpha: 0.05
+    homo_method: "breusch_pagan"  # breusch_pagan, white
+    
+    # Multicollinearity
+    vif_threshold: 10.0
+    correlation_threshold: 0.95
+    
+    # Class balance (classification)
+    imbalance_threshold: 0.9
+    min_class_size: 30
+    
+    # Additional assumptions
+    linearity_alpha: 0.05
+    independence_alpha: 0.05
+    
+    # Performance settings
+    chunk_size: null
+    enable_sampling: true
+    max_features_vif: 50
+    
+    # Output options
+    verbose: true
+    generate_recommendations: true
+  
+  # Model Recommendation
+  model_recommendation:
+    enabled: true
+    class_threshold: 20  # Max unique values for classification
+    include_advanced_models: true
+    
+  # Human review points
+  human_review:
+    assumption_violations: true
+    model_recommendation_review: true
+    statistical_significance: true
+
+# =============================================================================
+# STAGE 4: MODEL TRAINING (pipeline_4/trainer.py)
+# =============================================================================
+model_training:
+  # Data splitting
+  test_size: 0.2
+  validation_size: 0.1
+  random_state: 42
+  
+  # Model selection
+  max_models: 3
+  include_ensemble: true
+  include_advanced: true  # XGBoost, LightGBM, CatBoost
+  
+  # Hyperparameter tuning
+  enable_tuning: true
+  tuning_method: "random"  # grid, random, none
+  tuning_iterations: 50
+  tuning_cv_folds: 3
+  
+  # Cross-validation
+  cv_folds: 5
+  scoring_strategy: "fast"  # fast, comprehensive
+  
+  # Encoding and preprocessing
+  encoding_strategy: "onehot"  # onehot, label, ordinal
+  scaling_strategy: "standard"  # standard, minmax, robust, none
+  
+  # Performance settings
+  parallel_jobs: -1
+  max_training_time_minutes: 30
+  memory_limit_gb: null
+  
+  # Output settings
+  save_models: true
+  model_dir: "models"
+  save_predictions: true
+  verbose: true
+  
+  # Human review points
+  human_review:
+    model_performance_threshold: 0.7  # Review if best model < 70% accuracy/R²
+    training_time_threshold: 300      # Review if training > 5 minutes
+    cross_validation_issues: true
+
+# =============================================================================
+# STAGE 5: MODEL EVALUATION (pipeline_4/evaluator.py)
+# =============================================================================
+model_evaluation:
+  # Input settings
+  training_report_path: "comprehensive_training_report.json"
+  output_dir: "evaluation_results"
+  
+  # Analysis components
+  enable_shap: true  # Resource intensive
+  enable_learning_curves: true
+  enable_residual_analysis: true
+  enable_stability_analysis: true
+  enable_interpretability: true
+  
+  # Stability analysis settings
+  noise_levels: [0.01, 0.05, 0.1]
+  dropout_rates: [0.1, 0.2, 0.3] 
+  bootstrap_samples: 100
+  
+  # Performance settings
+  verbose: true
+  max_models_to_analyze: 5
+  
+  # Human review points
+  human_review:
+    stability_threshold: 0.8      # Review if stability score < 80%
+    interpretability_required: true
+    business_metrics_review: true
+
+# =============================================================================
+# BUSINESS RULES & CONSTRAINTS
+# =============================================================================
+business_rules:
+  # Domain-specific settings
+  domain: "banking"  # banking, healthcare, retail, marketing, etc.
+  
+  # Protected features (never auto-drop)
+  protected_features:
+    - "customer_id"
+    - "account_id"
+    - "target_variable"
+  
+  # Mandatory features (must be present)
+  mandatory_features:
+    - "age"
+    - "balance"
+  
+  # Feature value constraints
+  feature_constraints:
+    age:
+      min: 0
+      max: 120
+      outlier_action: "cap"
+    balance:
+      min: -100000
+      max: 1000000
+      outlier_action: "review"
+  
+  # Regulatory compliance
+  regulatory:
+    gdpr_compliance: true
+    fair_lending_act: true
+    model_explainability_required: true
+  
+  # Business metrics priority
+  business_metrics:
+    primary_metric: "precision"    # precision, recall, f1, accuracy, roc_auc
+    business_cost_matrix: null     # Custom cost matrix if needed
+    
+# =============================================================================
+# PIPELINE WORKFLOW SETTINGS
+# =============================================================================
+workflow:
+  # Stage execution order
+  stages:
+    - "profiling"
+    - "data_cleaning"  
+    - "ml_advisory"
+    - "model_training"
+    - "model_evaluation"
+  
+  # Error handling
+  error_handling:
+    stop_on_error: false
+    skip_failed_stages: true
+    retry_attempts: 1
+  
+  # Logging
+  logging:
+    level: "INFO"  # DEBUG, INFO, WARNING, ERROR
+    log_file: "pipeline.log"
+    console_output: true
+  
+  # Output management
+  outputs:
+    create_summary_report: true
+    save_intermediate_files: true
+    cleanup_temp_files: false

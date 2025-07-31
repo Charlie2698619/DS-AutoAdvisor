@@ -1,0 +1,148 @@
+# Business Rules Configuration
+# Domain-specific constraints and human intervention guidelines
+
+data_constraints:
+  # Features that should never be automatically dropped
+  protected_features:
+    - "customer_id"
+    - "transaction_id" 
+    - "target_variable"
+    - "regulatory_required_fields"
+  
+  # Features that must be present in final dataset
+  mandatory_features:
+    - "primary_key"
+    - "timestamp"
+    - "target"
+  
+  # Valid value ranges for features
+  feature_constraints:
+    age:
+      min: 0
+      max: 120
+      type: "integer"
+      outlier_action: "cap"  # cap, remove, review
+    
+    income:
+      min: 0
+      max: 10000000  # 10M cap
+      type: "float"
+      outlier_action: "review"
+    
+    credit_score:
+      min: 300
+      max: 850
+      type: "integer"
+      outlier_action: "cap"
+    
+    balance:
+      min: -1000000  # Allow negative balances
+      max: 10000000
+      type: "float"
+      outlier_action: "review"
+
+human_intervention_rules:
+  # When to require human review
+  data_quality_triggers:
+    missing_data_threshold: 0.25  # >25% missing in any column
+    outlier_percentage_threshold: 0.05  # >5% outliers in dataset
+    duplicate_percentage_threshold: 0.1  # >10% duplicates
+    zero_variance_features: true  # Always review zero-variance features
+    
+  # Outlier handling rules
+  outlier_handling:
+    high_confidence_auto_remove: 0.95  # >95% confidence = auto remove
+    medium_confidence_review: [0.7, 0.95]  # 70-95% = human review
+    low_confidence_keep: 0.7  # <70% confidence = keep
+    
+    # Special cases requiring human review
+    special_cases:
+      - "vip_customers"  # Never auto-remove VIP customer data
+      - "regulatory_data"  # Regulatory data needs compliance review
+      - "new_product_data"  # New products need domain expert review
+  
+  # Feature engineering rules
+  feature_engineering:
+    max_new_features: 50  # Limit automated feature creation
+    correlation_threshold: 0.95  # Review highly correlated features
+    
+    # Feature creation confidence thresholds
+    auto_create_threshold: 0.9  # >90% confidence = auto create
+    review_create_threshold: 0.7  # 70-90% = human review
+    
+    # Domain-specific feature rules
+    domain_rules:
+      financial:
+        - "debt_to_income_ratio: if income > 0 and debt > 0"
+        - "age_risk_category: discretize age into risk buckets"
+      
+      marketing:
+        - "customer_lifetime_value: requires business logic input"
+        - "churn_risk_score: needs marketing team validation"
+
+business_logic:
+  # Industry/domain specific constraints
+  domain: "banking"  # banking, healthcare, retail, etc.
+  
+  # Regulatory requirements
+  regulatory_compliance:
+    gdpr: true  # GDPR compliance required
+    pci_dss: true  # PCI DSS compliance for payment data
+    fair_credit: true  # Fair Credit Reporting Act compliance
+  
+  # Business metric priorities
+  optimization_priority:
+    primary: "precision"  # Primary metric to optimize
+    secondary: "recall"
+    business_impact: "revenue"  # revenue, cost_reduction, customer_satisfaction
+  
+  # Model interpretability requirements
+  interpretability:
+    required: true
+    level: "high"  # low, medium, high
+    stakeholders: ["regulators", "business_users", "customers"]
+
+approval_workflow:
+  # Who needs to approve what
+  stakeholder_approvals:
+    data_quality_issues:
+      - "data_scientist"
+      - "domain_expert"
+    
+    feature_engineering:
+      - "data_scientist" 
+      - "business_analyst"
+    
+    model_selection:
+      - "ml_engineer"
+      - "business_owner"
+    
+    deployment:
+      - "data_scientist"
+      - "ml_engineer"
+      - "business_owner"
+      - "compliance_officer"
+
+automation_learning:
+  # Progressive automation settings
+  learning_enabled: true
+  feedback_collection: true
+  
+  # Confidence building rules
+  confidence_thresholds:
+    initial: 0.5  # Start conservative
+    target: 0.9   # Goal confidence level
+    increment: 0.1  # How much to increase per successful automation
+    decrement: 0.2  # How much to decrease per failed automation
+  
+  # Learning from human decisions
+  human_feedback:
+    collect_reasoning: true
+    weight_expert_feedback: 2.0  # Expert feedback counts 2x
+    minimum_samples: 10  # Min samples before automation
+    
+  # Adaptation rules
+  adaptation:
+    similar_dataset_learning: true  # Learn from similar datasets
+    temporal_adaptation: true       # Adapt to changing data patterns
+    domain_transfer: false          # Don't transfer across domains initially

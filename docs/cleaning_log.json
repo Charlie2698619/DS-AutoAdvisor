@@ -1,14 +1,16 @@
 {
   "initial_shape": [
-    45211,
-    1
+    7043,
+    21
   ],
   "final_shape": [
-    45211,
-    1
+    5901,
+    21
   ],
-  "actions": [],
+  "actions": [
+    "[OutlierRemoval] Removed 1142 outliers using iqr"
+  ],
   "warnings": [],
   "errors": [],
-  "processing_time": 0.3076636791229248
+  "processing_time": 0.05181312561035156
 }
