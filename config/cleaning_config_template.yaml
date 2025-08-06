@@ -1,0 +1,645 @@
+# Auto-generated cleaning configuration template
+# Generated from: telco_churn_data.csv
+# Generated at: 2025-08-04 15:12:19
+
+# Global settings
+global_settings:
+  remove_duplicates: true
+  outlier_method: 'iqr'  # iqr, isoforest, zscore
+  missing_row_threshold: 0.5
+  correlation_threshold: 0.95
+
+# Column-specific transformations
+column_transformations:
+  customerID:
+    # Data type: object
+    # Missing: 0.0%
+    # Unique: 7043
+    # Recommendations: reduce_cardinality
+    drop_column: true  # Suggested: appears to be a unique identifier
+    drop_reason: 'unique_identifier'  # unique_identifier, irrelevant, redundant, high_cardinality, low_variance
+    dtype_conversion: null  # int, float, str, bool, category, datetime
+    datetime_format: null  # '%Y-%m-%d', '%d/%m/%Y', etc.
+    imputation: null  # No missing values
+    imputation_value: null  # for constant imputation
+    outlier_treatment: null
+    outlier_threshold: null
+    text_cleaning: false
+    text_operations: null  # [strip, lower, upper, title, remove_digits, remove_punctuation, remove_extra_spaces]
+    regex_replace: null  # {'pattern': 'replacement'}
+    encoding: 'target'  # onehot, label, target, ordinal, binary, frequency, mean_encoding
+    date_conversion: false
+    extract_date_features: null
+    encoding_categories: null  # explicit order for ordinal encoding
+    max_categories: null  # limit for high cardinality
+    transformation: null
+    scaling: null
+    polynomial_degree: null
+    binning: null  # equal_width, equal_frequency, kmeans, quantile
+    n_bins: null  # number of bins
+    feature_interactions: null  # [col1, col2] to create interactions with
+    value_constraints: null  # {min_value: 0, max_value: 100, allowed_values: [a, b, c]}
+    custom_function: null  # name of custom function
+    custom_parameters: null  # parameters for custom function
+
+  gender:
+    # Data type: object
+    # Missing: 0.0%
+    # Unique: 0
+    drop_column: false  # Set to true to remove this column entirely
+    drop_reason: null  # unique_identifier, irrelevant, redundant, high_cardinality, low_variance
+    dtype_conversion: null  # int, float, str, bool, category, datetime
+    datetime_format: null  # '%Y-%m-%d', '%d/%m/%Y', etc.
+    imputation: null  # No missing values
+    imputation_value: null  # for constant imputation
+    outlier_treatment: null
+    outlier_threshold: null
+    text_cleaning: false
+    text_operations: null  # [strip, lower, upper, title, remove_digits, remove_punctuation, remove_extra_spaces]
+    regex_replace: null  # {'pattern': 'replacement'}
+    encoding: 'target'  # onehot, label, target, ordinal, binary, frequency, mean_encoding
+    date_conversion: false
+    extract_date_features: null
+    encoding_categories: null  # explicit order for ordinal encoding
+    max_categories: null  # limit for high cardinality
+    transformation: null
+    scaling: null
+    polynomial_degree: null
+    binning: null  # equal_width, equal_frequency, kmeans, quantile
+    n_bins: null  # number of bins
+    feature_interactions: null  # [col1, col2] to create interactions with
+    value_constraints: null  # {min_value: 0, max_value: 100, allowed_values: [a, b, c]}
+    custom_function: null  # name of custom function
+    custom_parameters: null  # parameters for custom function
+
+  SeniorCitizen:
+    # Data type: int64
+    # Missing: 0.0%
+    # Unique: 0
+    # Recommendations: handle_outliers
+    drop_column: false  # Set to true to remove this column entirely
+    drop_reason: null  # unique_identifier, irrelevant, redundant, high_cardinality, low_variance
+    dtype_conversion: null  # int, float, str, bool, category, datetime
+    datetime_format: null  # '%Y-%m-%d', '%d/%m/%Y', etc.
+    imputation: null  # No missing values
+    imputation_value: null  # for constant imputation
+    outlier_treatment: 'remove'  # remove, cap, winsorize, null, iqr_cap, zscore_cap, isolation_forest
+    outlier_threshold: 1.5  # IQR factor or Z-score threshold
+    text_cleaning: false
+    text_operations: null
+    regex_replace: null
+    encoding: null
+    date_conversion: false
+    extract_date_features: null
+    encoding_categories: null
+    max_categories: null
+    transformation: null
+    scaling: 'standard'  # standard, minmax, robust, maxabs, quantile_uniform, quantile_normal
+    polynomial_degree: null  # for polynomial transformation
+    binning: null  # equal_width, equal_frequency, kmeans, quantile
+    n_bins: null  # number of bins
+    feature_interactions: null  # [col1, col2] to create interactions with
+    value_constraints: null  # {min_value: 0, max_value: 100, allowed_values: [a, b, c]}
+    custom_function: null  # name of custom function
+    custom_parameters: null  # parameters for custom function
+
+  Partner:
+    # Data type: object
+    # Missing: 0.0%
+    # Unique: 0
+    drop_column: false  # Set to true to remove this column entirely
+    drop_reason: null  # unique_identifier, irrelevant, redundant, high_cardinality, low_variance
+    dtype_conversion: null  # int, float, str, bool, category, datetime
+    datetime_format: null  # '%Y-%m-%d', '%d/%m/%Y', etc.
+    imputation: null  # No missing values
+    imputation_value: null  # for constant imputation
+    outlier_treatment: null
+    outlier_threshold: null
+    text_cleaning: false
+    text_operations: null  # [strip, lower, upper, title, remove_digits, remove_punctuation, remove_extra_spaces]
+    regex_replace: null  # {'pattern': 'replacement'}
+    encoding: 'target'  # onehot, label, target, ordinal, binary, frequency, mean_encoding
+    date_conversion: false
+    extract_date_features: null
+    encoding_categories: null  # explicit order for ordinal encoding
+    max_categories: null  # limit for high cardinality
+    transformation: null
+    scaling: null
+    polynomial_degree: null
+    binning: null  # equal_width, equal_frequency, kmeans, quantile
+    n_bins: null  # number of bins
+    feature_interactions: null  # [col1, col2] to create interactions with
+    value_constraints: null  # {min_value: 0, max_value: 100, allowed_values: [a, b, c]}
+    custom_function: null  # name of custom function
+    custom_parameters: null  # parameters for custom function
+
+  Dependents:
+    # Data type: object
+    # Missing: 0.0%
+    # Unique: 0
+    drop_column: false  # Set to true to remove this column entirely
+    drop_reason: null  # unique_identifier, irrelevant, redundant, high_cardinality, low_variance
+    dtype_conversion: null  # int, float, str, bool, category, datetime
+    datetime_format: null  # '%Y-%m-%d', '%d/%m/%Y', etc.
+    imputation: null  # No missing values
+    imputation_value: null  # for constant imputation
+    outlier_treatment: null
+    outlier_threshold: null
+    text_cleaning: false
+    text_operations: null  # [strip, lower, upper, title, remove_digits, remove_punctuation, remove_extra_spaces]
+    regex_replace: null  # {'pattern': 'replacement'}
+    encoding: 'target'  # onehot, label, target, ordinal, binary, frequency, mean_encoding
+    date_conversion: false
+    extract_date_features: null
+    encoding_categories: null  # explicit order for ordinal encoding
+    max_categories: null  # limit for high cardinality
+    transformation: null
+    scaling: null
+    polynomial_degree: null
+    binning: null  # equal_width, equal_frequency, kmeans, quantile
+    n_bins: null  # number of bins
+    feature_interactions: null  # [col1, col2] to create interactions with
+    value_constraints: null  # {min_value: 0, max_value: 100, allowed_values: [a, b, c]}
+    custom_function: null  # name of custom function
+    custom_parameters: null  # parameters for custom function
+
+  tenure:
+    # Data type: int64
+    # Missing: 0.0%
+    # Unique: 0
+    drop_column: false  # Set to true to remove this column entirely
+    drop_reason: null  # unique_identifier, irrelevant, redundant, high_cardinality, low_variance
+    dtype_conversion: null  # int, float, str, bool, category, datetime
+    datetime_format: null  # '%Y-%m-%d', '%d/%m/%Y', etc.
+    imputation: null  # No missing values
+    imputation_value: null  # for constant imputation
+    outlier_treatment: null
+    outlier_threshold: null
+    text_cleaning: false
+    text_operations: null
+    regex_replace: null
+    encoding: null
+    date_conversion: false
+    extract_date_features: null
+    encoding_categories: null
+    max_categories: null
+    transformation: null
+    scaling: 'standard'  # standard, minmax, robust, maxabs, quantile_uniform, quantile_normal
+    polynomial_degree: null  # for polynomial transformation
+    binning: null  # equal_width, equal_frequency, kmeans, quantile
+    n_bins: null  # number of bins
+    feature_interactions: null  # [col1, col2] to create interactions with
+    value_constraints: null  # {min_value: 0, max_value: 100, allowed_values: [a, b, c]}
+    custom_function: null  # name of custom function
+    custom_parameters: null  # parameters for custom function
+
+  PhoneService:
+    # Data type: object
+    # Missing: 0.0%
+    # Unique: 0
+    drop_column: false  # Set to true to remove this column entirely
+    drop_reason: null  # unique_identifier, irrelevant, redundant, high_cardinality, low_variance
+    dtype_conversion: null  # int, float, str, bool, category, datetime
+    datetime_format: null  # '%Y-%m-%d', '%d/%m/%Y', etc.
+    imputation: null  # No missing values
+    imputation_value: null  # for constant imputation
+    outlier_treatment: null
+    outlier_threshold: null
+    text_cleaning: false
+    text_operations: null  # [strip, lower, upper, title, remove_digits, remove_punctuation, remove_extra_spaces]
+    regex_replace: null  # {'pattern': 'replacement'}
+    encoding: 'target'  # onehot, label, target, ordinal, binary, frequency, mean_encoding
+    date_conversion: false
+    extract_date_features: null
+    encoding_categories: null  # explicit order for ordinal encoding
+    max_categories: null  # limit for high cardinality
+    transformation: null
+    scaling: null
+    polynomial_degree: null
+    binning: null  # equal_width, equal_frequency, kmeans, quantile
+    n_bins: null  # number of bins
+    feature_interactions: null  # [col1, col2] to create interactions with
+    value_constraints: null  # {min_value: 0, max_value: 100, allowed_values: [a, b, c]}
+    custom_function: null  # name of custom function
+    custom_parameters: null  # parameters for custom function
+
+  MultipleLines:
+    # Data type: object
+    # Missing: 0.0%
+    # Unique: 0
+    drop_column: false  # Set to true to remove this column entirely
+    drop_reason: null  # unique_identifier, irrelevant, redundant, high_cardinality, low_variance
+    dtype_conversion: null  # int, float, str, bool, category, datetime
+    datetime_format: null  # '%Y-%m-%d', '%d/%m/%Y', etc.
+    imputation: null  # No missing values
+    imputation_value: null  # for constant imputation
+    outlier_treatment: null
+    outlier_threshold: null
+    text_cleaning: false
+    text_operations: null  # [strip, lower, upper, title, remove_digits, remove_punctuation, remove_extra_spaces]
+    regex_replace: null  # {'pattern': 'replacement'}
+    encoding: 'target'  # onehot, label, target, ordinal, binary, frequency, mean_encoding
+    date_conversion: false
+    extract_date_features: null
+    encoding_categories: null  # explicit order for ordinal encoding
+    max_categories: null  # limit for high cardinality
+    transformation: null
+    scaling: null
+    polynomial_degree: null
+    binning: null  # equal_width, equal_frequency, kmeans, quantile
+    n_bins: null  # number of bins
+    feature_interactions: null  # [col1, col2] to create interactions with
+    value_constraints: null  # {min_value: 0, max_value: 100, allowed_values: [a, b, c]}
+    custom_function: null  # name of custom function
+    custom_parameters: null  # parameters for custom function
+
+  InternetService:
+    # Data type: object
+    # Missing: 0.0%
+    # Unique: 0
+    drop_column: false  # Set to true to remove this column entirely
+    drop_reason: null  # unique_identifier, irrelevant, redundant, high_cardinality, low_variance
+    dtype_conversion: null  # int, float, str, bool, category, datetime
+    datetime_format: null  # '%Y-%m-%d', '%d/%m/%Y', etc.
+    imputation: null  # No missing values
+    imputation_value: null  # for constant imputation
+    outlier_treatment: null
+    outlier_threshold: null
+    text_cleaning: false
+    text_operations: null  # [strip, lower, upper, title, remove_digits, remove_punctuation, remove_extra_spaces]
+    regex_replace: null  # {'pattern': 'replacement'}
+    encoding: 'target'  # onehot, label, target, ordinal, binary, frequency, mean_encoding
+    date_conversion: false
+    extract_date_features: null
+    encoding_categories: null  # explicit order for ordinal encoding
+    max_categories: null  # limit for high cardinality
+    transformation: null
+    scaling: null
+    polynomial_degree: null
+    binning: null  # equal_width, equal_frequency, kmeans, quantile
+    n_bins: null  # number of bins
+    feature_interactions: null  # [col1, col2] to create interactions with
+    value_constraints: null  # {min_value: 0, max_value: 100, allowed_values: [a, b, c]}
+    custom_function: null  # name of custom function
+    custom_parameters: null  # parameters for custom function
+
+  OnlineSecurity:
+    # Data type: object
+    # Missing: 0.0%
+    # Unique: 0
+    drop_column: false  # Set to true to remove this column entirely
+    drop_reason: null  # unique_identifier, irrelevant, redundant, high_cardinality, low_variance
+    dtype_conversion: null  # int, float, str, bool, category, datetime
+    datetime_format: null  # '%Y-%m-%d', '%d/%m/%Y', etc.
+    imputation: null  # No missing values
+    imputation_value: null  # for constant imputation
+    outlier_treatment: null
+    outlier_threshold: null
+    text_cleaning: false
+    text_operations: null  # [strip, lower, upper, title, remove_digits, remove_punctuation, remove_extra_spaces]
+    regex_replace: null  # {'pattern': 'replacement'}
+    encoding: 'target'  # onehot, label, target, ordinal, binary, frequency, mean_encoding
+    date_conversion: false
+    extract_date_features: null
+    encoding_categories: null  # explicit order for ordinal encoding
+    max_categories: null  # limit for high cardinality
+    transformation: null
+    scaling: null
+    polynomial_degree: null
+    binning: null  # equal_width, equal_frequency, kmeans, quantile
+    n_bins: null  # number of bins
+    feature_interactions: null  # [col1, col2] to create interactions with
+    value_constraints: null  # {min_value: 0, max_value: 100, allowed_values: [a, b, c]}
+    custom_function: null  # name of custom function
+    custom_parameters: null  # parameters for custom function
+
+  OnlineBackup:
+    # Data type: object
+    # Missing: 0.0%
+    # Unique: 0
+    drop_column: false  # Set to true to remove this column entirely
+    drop_reason: null  # unique_identifier, irrelevant, redundant, high_cardinality, low_variance
+    dtype_conversion: null  # int, float, str, bool, category, datetime
+    datetime_format: null  # '%Y-%m-%d', '%d/%m/%Y', etc.
+    imputation: null  # No missing values
+    imputation_value: null  # for constant imputation
+    outlier_treatment: null
+    outlier_threshold: null
+    text_cleaning: false
+    text_operations: null  # [strip, lower, upper, title, remove_digits, remove_punctuation, remove_extra_spaces]
+    regex_replace: null  # {'pattern': 'replacement'}
+    encoding: 'target'  # onehot, label, target, ordinal, binary, frequency, mean_encoding
+    date_conversion: false
+    extract_date_features: null
+    encoding_categories: null  # explicit order for ordinal encoding
+    max_categories: null  # limit for high cardinality
+    transformation: null
+    scaling: null
+    polynomial_degree: null
+    binning: null  # equal_width, equal_frequency, kmeans, quantile
+    n_bins: null  # number of bins
+    feature_interactions: null  # [col1, col2] to create interactions with
+    value_constraints: null  # {min_value: 0, max_value: 100, allowed_values: [a, b, c]}
+    custom_function: null  # name of custom function
+    custom_parameters: null  # parameters for custom function
+
+  DeviceProtection:
+    # Data type: object
+    # Missing: 0.0%
+    # Unique: 0
+    drop_column: false  # Set to true to remove this column entirely
+    drop_reason: null  # unique_identifier, irrelevant, redundant, high_cardinality, low_variance
+    dtype_conversion: null  # int, float, str, bool, category, datetime
+    datetime_format: null  # '%Y-%m-%d', '%d/%m/%Y', etc.
+    imputation: null  # No missing values
+    imputation_value: null  # for constant imputation
+    outlier_treatment: null
+    outlier_threshold: null
+    text_cleaning: false
+    text_operations: null  # [strip, lower, upper, title, remove_digits, remove_punctuation, remove_extra_spaces]
+    regex_replace: null  # {'pattern': 'replacement'}
+    encoding: 'target'  # onehot, label, target, ordinal, binary, frequency, mean_encoding
+    date_conversion: false
+    extract_date_features: null
+    encoding_categories: null  # explicit order for ordinal encoding
+    max_categories: null  # limit for high cardinality
+    transformation: null
+    scaling: null
+    polynomial_degree: null
+    binning: null  # equal_width, equal_frequency, kmeans, quantile
+    n_bins: null  # number of bins
+    feature_interactions: null  # [col1, col2] to create interactions with
+    value_constraints: null  # {min_value: 0, max_value: 100, allowed_values: [a, b, c]}
+    custom_function: null  # name of custom function
+    custom_parameters: null  # parameters for custom function
+
+  TechSupport:
+    # Data type: object
+    # Missing: 0.0%
+    # Unique: 0
+    drop_column: false  # Set to true to remove this column entirely
+    drop_reason: null  # unique_identifier, irrelevant, redundant, high_cardinality, low_variance
+    dtype_conversion: null  # int, float, str, bool, category, datetime
+    datetime_format: null  # '%Y-%m-%d', '%d/%m/%Y', etc.
+    imputation: null  # No missing values
+    imputation_value: null  # for constant imputation
+    outlier_treatment: null
+    outlier_threshold: null
+    text_cleaning: false
+    text_operations: null  # [strip, lower, upper, title, remove_digits, remove_punctuation, remove_extra_spaces]
+    regex_replace: null  # {'pattern': 'replacement'}
+    encoding: 'target'  # onehot, label, target, ordinal, binary, frequency, mean_encoding
+    date_conversion: false
+    extract_date_features: null
+    encoding_categories: null  # explicit order for ordinal encoding
+    max_categories: null  # limit for high cardinality
+    transformation: null
+    scaling: null
+    polynomial_degree: null
+    binning: null  # equal_width, equal_frequency, kmeans, quantile
+    n_bins: null  # number of bins
+    feature_interactions: null  # [col1, col2] to create interactions with
+    value_constraints: null  # {min_value: 0, max_value: 100, allowed_values: [a, b, c]}
+    custom_function: null  # name of custom function
+    custom_parameters: null  # parameters for custom function
+
+  StreamingTV:
+    # Data type: object
+    # Missing: 0.0%
+    # Unique: 0
+    drop_column: false  # Set to true to remove this column entirely
+    drop_reason: null  # unique_identifier, irrelevant, redundant, high_cardinality, low_variance
+    dtype_conversion: null  # int, float, str, bool, category, datetime
+    datetime_format: null  # '%Y-%m-%d', '%d/%m/%Y', etc.
+    imputation: null  # No missing values
+    imputation_value: null  # for constant imputation
+    outlier_treatment: null
+    outlier_threshold: null
+    text_cleaning: false
+    text_operations: null  # [strip, lower, upper, title, remove_digits, remove_punctuation, remove_extra_spaces]
+    regex_replace: null  # {'pattern': 'replacement'}
+    encoding: 'target'  # onehot, label, target, ordinal, binary, frequency, mean_encoding
+    date_conversion: false
+    extract_date_features: null
+    encoding_categories: null  # explicit order for ordinal encoding
+    max_categories: null  # limit for high cardinality
+    transformation: null
+    scaling: null
+    polynomial_degree: null
+    binning: null  # equal_width, equal_frequency, kmeans, quantile
+    n_bins: null  # number of bins
+    feature_interactions: null  # [col1, col2] to create interactions with
+    value_constraints: null  # {min_value: 0, max_value: 100, allowed_values: [a, b, c]}
+    custom_function: null  # name of custom function
+    custom_parameters: null  # parameters for custom function
+
+  StreamingMovies:
+    # Data type: object
+    # Missing: 0.0%
+    # Unique: 0
+    drop_column: false  # Set to true to remove this column entirely
+    drop_reason: null  # unique_identifier, irrelevant, redundant, high_cardinality, low_variance
+    dtype_conversion: null  # int, float, str, bool, category, datetime
+    datetime_format: null  # '%Y-%m-%d', '%d/%m/%Y', etc.
+    imputation: null  # No missing values
+    imputation_value: null  # for constant imputation
+    outlier_treatment: null
+    outlier_threshold: null
+    text_cleaning: false
+    text_operations: null  # [strip, lower, upper, title, remove_digits, remove_punctuation, remove_extra_spaces]
+    regex_replace: null  # {'pattern': 'replacement'}
+    encoding: 'target'  # onehot, label, target, ordinal, binary, frequency, mean_encoding
+    date_conversion: false
+    extract_date_features: null
+    encoding_categories: null  # explicit order for ordinal encoding
+    max_categories: null  # limit for high cardinality
+    transformation: null
+    scaling: null
+    polynomial_degree: null
+    binning: null  # equal_width, equal_frequency, kmeans, quantile
+    n_bins: null  # number of bins
+    feature_interactions: null  # [col1, col2] to create interactions with
+    value_constraints: null  # {min_value: 0, max_value: 100, allowed_values: [a, b, c]}
+    custom_function: null  # name of custom function
+    custom_parameters: null  # parameters for custom function
+
+  Contract:
+    # Data type: object
+    # Missing: 0.0%
+    # Unique: 0
+    drop_column: false  # Set to true to remove this column entirely
+    drop_reason: null  # unique_identifier, irrelevant, redundant, high_cardinality, low_variance
+    dtype_conversion: null  # int, float, str, bool, category, datetime
+    datetime_format: null  # '%Y-%m-%d', '%d/%m/%Y', etc.
+    imputation: null  # No missing values
+    imputation_value: null  # for constant imputation
+    outlier_treatment: null
+    outlier_threshold: null
+    text_cleaning: false
+    text_operations: null  # [strip, lower, upper, title, remove_digits, remove_punctuation, remove_extra_spaces]
+    regex_replace: null  # {'pattern': 'replacement'}
+    encoding: 'target'  # onehot, label, target, ordinal, binary, frequency, mean_encoding
+    date_conversion: false
+    extract_date_features: null
+    encoding_categories: null  # explicit order for ordinal encoding
+    max_categories: null  # limit for high cardinality
+    transformation: null
+    scaling: null
+    polynomial_degree: null
+    binning: null  # equal_width, equal_frequency, kmeans, quantile
+    n_bins: null  # number of bins
+    feature_interactions: null  # [col1, col2] to create interactions with
+    value_constraints: null  # {min_value: 0, max_value: 100, allowed_values: [a, b, c]}
+    custom_function: null  # name of custom function
+    custom_parameters: null  # parameters for custom function
+
+  PaperlessBilling:
+    # Data type: object
+    # Missing: 0.0%
+    # Unique: 0
+    drop_column: false  # Set to true to remove this column entirely
+    drop_reason: null  # unique_identifier, irrelevant, redundant, high_cardinality, low_variance
+    dtype_conversion: null  # int, float, str, bool, category, datetime
+    datetime_format: null  # '%Y-%m-%d', '%d/%m/%Y', etc.
+    imputation: null  # No missing values
+    imputation_value: null  # for constant imputation
+    outlier_treatment: null
+    outlier_threshold: null
+    text_cleaning: false
+    text_operations: null  # [strip, lower, upper, title, remove_digits, remove_punctuation, remove_extra_spaces]
+    regex_replace: null  # {'pattern': 'replacement'}
+    encoding: 'target'  # onehot, label, target, ordinal, binary, frequency, mean_encoding
+    date_conversion: false
+    extract_date_features: null
+    encoding_categories: null  # explicit order for ordinal encoding
+    max_categories: null  # limit for high cardinality
+    transformation: null
+    scaling: null
+    polynomial_degree: null
+    binning: null  # equal_width, equal_frequency, kmeans, quantile
+    n_bins: null  # number of bins
+    feature_interactions: null  # [col1, col2] to create interactions with
+    value_constraints: null  # {min_value: 0, max_value: 100, allowed_values: [a, b, c]}
+    custom_function: null  # name of custom function
+    custom_parameters: null  # parameters for custom function
+
+  PaymentMethod:
+    # Data type: object
+    # Missing: 0.0%
+    # Unique: 0
+    drop_column: false  # Set to true to remove this column entirely
+    drop_reason: null  # unique_identifier, irrelevant, redundant, high_cardinality, low_variance
+    dtype_conversion: null  # int, float, str, bool, category, datetime
+    datetime_format: null  # '%Y-%m-%d', '%d/%m/%Y', etc.
+    imputation: null  # No missing values
+    imputation_value: null  # for constant imputation
+    outlier_treatment: null
+    outlier_threshold: null
+    text_cleaning: false
+    text_operations: null  # [strip, lower, upper, title, remove_digits, remove_punctuation, remove_extra_spaces]
+    regex_replace: null  # {'pattern': 'replacement'}
+    encoding: 'target'  # onehot, label, target, ordinal, binary, frequency, mean_encoding
+    date_conversion: false
+    extract_date_features: null
+    encoding_categories: null  # explicit order for ordinal encoding
+    max_categories: null  # limit for high cardinality
+    transformation: null
+    scaling: null
+    polynomial_degree: null
+    binning: null  # equal_width, equal_frequency, kmeans, quantile
+    n_bins: null  # number of bins
+    feature_interactions: null  # [col1, col2] to create interactions with
+    value_constraints: null  # {min_value: 0, max_value: 100, allowed_values: [a, b, c]}
+    custom_function: null  # name of custom function
+    custom_parameters: null  # parameters for custom function
+
+  MonthlyCharges:
+    # Data type: float64
+    # Missing: 0.0%
+    # Unique: 381
+    drop_column: false  # Set to true to remove this column entirely
+    drop_reason: null  # unique_identifier, irrelevant, redundant, high_cardinality, low_variance
+    dtype_conversion: null  # int, float, str, bool, category, datetime
+    datetime_format: null  # '%Y-%m-%d', '%d/%m/%Y', etc.
+    imputation: null  # No missing values
+    imputation_value: null  # for constant imputation
+    outlier_treatment: null
+    outlier_threshold: null
+    text_cleaning: false
+    text_operations: null
+    regex_replace: null
+    encoding: null
+    date_conversion: false
+    extract_date_features: null
+    encoding_categories: null
+    max_categories: null
+    transformation: null
+    scaling: 'standard'  # standard, minmax, robust, maxabs, quantile_uniform, quantile_normal
+    polynomial_degree: null  # for polynomial transformation
+    binning: null  # equal_width, equal_frequency, kmeans, quantile
+    n_bins: null  # number of bins
+    feature_interactions: null  # [col1, col2] to create interactions with
+    value_constraints: null  # {min_value: 0, max_value: 100, allowed_values: [a, b, c]}
+    custom_function: null  # name of custom function
+    custom_parameters: null  # parameters for custom function
+
+  TotalCharges:
+    # Data type: object
+    # Missing: 0.0%
+    # Unique: 6172
+    # Recommendations: reduce_cardinality, clean_whitespace
+    drop_column: false  # Set to true to remove this column entirely
+    drop_reason: null  # unique_identifier, irrelevant, redundant, high_cardinality, low_variance
+    dtype_conversion: null  # int, float, str, bool, category, datetime
+    datetime_format: null  # '%Y-%m-%d', '%d/%m/%Y', etc.
+    imputation: null  # No missing values
+    imputation_value: null  # for constant imputation
+    outlier_treatment: null
+    outlier_threshold: null
+    text_cleaning: false
+    text_operations: null  # [strip, lower, upper, title, remove_digits, remove_punctuation, remove_extra_spaces]
+    regex_replace: null  # {'pattern': 'replacement'}
+    encoding: 'target'  # onehot, label, target, ordinal, binary, frequency, mean_encoding
+    date_conversion: false
+    extract_date_features: null
+    encoding_categories: null  # explicit order for ordinal encoding
+    max_categories: null  # limit for high cardinality
+    transformation: null
+    scaling: null
+    polynomial_degree: null
+    binning: null  # equal_width, equal_frequency, kmeans, quantile
+    n_bins: null  # number of bins
+    feature_interactions: null  # [col1, col2] to create interactions with
+    value_constraints: null  # {min_value: 0, max_value: 100, allowed_values: [a, b, c]}
+    custom_function: null  # name of custom function
+    custom_parameters: null  # parameters for custom function
+
+  Churn:
+    # Data type: object
+    # Missing: 0.0%
+    # Unique: 0
+    drop_column: false  # Set to true to remove this column entirely
+    drop_reason: null  # unique_identifier, irrelevant, redundant, high_cardinality, low_variance
+    dtype_conversion: null  # int, float, str, bool, category, datetime
+    datetime_format: null  # '%Y-%m-%d', '%d/%m/%Y', etc.
+    imputation: null  # No missing values
+    imputation_value: null  # for constant imputation
+    outlier_treatment: null
+    outlier_threshold: null
+    text_cleaning: false
+    text_operations: null  # [strip, lower, upper, title, remove_digits, remove_punctuation, remove_extra_spaces]
+    regex_replace: null  # {'pattern': 'replacement'}
+    encoding: 'target'  # onehot, label, target, ordinal, binary, frequency, mean_encoding
+    date_conversion: false
+    extract_date_features: null
+    encoding_categories: null  # explicit order for ordinal encoding
+    max_categories: null  # limit for high cardinality
+    transformation: null
+    scaling: null
+    polynomial_degree: null
+    binning: null  # equal_width, equal_frequency, kmeans, quantile
+    n_bins: null  # number of bins
+    feature_interactions: null  # [col1, col2] to create interactions with
+    value_constraints: null  # {min_value: 0, max_value: 100, allowed_values: [a, b, c]}
+    custom_function: null  # name of custom function
+    custom_parameters: null  # parameters for custom function

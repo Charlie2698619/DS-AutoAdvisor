@@ -1,0 +1,172 @@
+{
+  "discovery_metadata": {
+    "timestamp": "2025-08-04T15:13:53.139863",
+    "dataset_name": "telco_churn_data",
+    "dataset_path": "data/telco_churn_data.csv",
+    "output_directory": "pipeline_outputs/01_discovery_telco_churn_data_20250804_151136"
+  },
+  "data_summary": {
+    "delimiter": ",",
+    "encoding": "utf-8"
+  },
+  "quality_assessment": {
+    "overall_score": 59.0,
+    "total_issues": 12,
+    "issues_by_severity": {
+      "low": 11,
+      "medium": 1,
+      "high": 0,
+      "critical": 0
+    },
+    "column_scores": {
+      "customerID": 100.0,
+      "gender": 95.0,
+      "SeniorCitizen": 100.0,
+      "Partner": 100.0,
+      "Dependents": 100.0,
+      "tenure": 100.0,
+      "PhoneService": 100.0,
+      "MultipleLines": 95.0,
+      "InternetService": 95.0,
+      "OnlineSecurity": 95.0,
+      "OnlineBackup": 95.0,
+      "DeviceProtection": 95.0,
+      "TechSupport": 95.0,
+      "StreamingTV": 95.0,
+      "StreamingMovies": 95.0,
+      "Contract": 95.0,
+      "PaperlessBilling": 100.0,
+      "PaymentMethod": 95.0,
+      "MonthlyCharges": 100.0,
+      "TotalCharges": 90.0,
+      "Churn": 100.0
+    },
+    "recommendations": [
+      "Optimize data types for better memory usage and performance",
+      "High number of data quality issues detected - consider comprehensive data cleaning"
+    ],
+    "metadata": {
+      "dataset_shape": [
+        7043,
+        21
+      ],
+      "memory_usage": "8166475",
+      "assessment_timestamp": "2025-08-04T15:12:23.974376"
+    },
+    "target_column": "Churn",
+    "issues": [
+      {
+        "severity": "low",
+        "column": "gender",
+        "issue_type": "suboptimal_data_type",
+        "description": "Column appears categorical but stored as object",
+        "suggested_action": "Convert to categorical type for memory efficiency",
+        "affected_rows_count": 0
+      },
+      {
+        "severity": "low",
+        "column": "MultipleLines",
+        "issue_type": "suboptimal_data_type",
+        "description": "Column appears categorical but stored as object",
+        "suggested_action": "Convert to categorical type for memory efficiency",
+        "affected_rows_count": 0
+      },
+      {
+        "severity": "low",
+        "column": "InternetService",
+        "issue_type": "suboptimal_data_type",
+        "description": "Column appears categorical but stored as object",
+        "suggested_action": "Convert to categorical type for memory efficiency",
+        "affected_rows_count": 0
+      },
+      {
+        "severity": "low",
+        "column": "OnlineSecurity",
+        "issue_type": "suboptimal_data_type",
+        "description": "Column appears categorical but stored as object",
+        "suggested_action": "Convert to categorical type for memory efficiency",
+        "affected_rows_count": 0
+      },
+      {
+        "severity": "low",
+        "column": "OnlineBackup",
+        "issue_type": "suboptimal_data_type",
+        "description": "Column appears categorical but stored as object",
+        "suggested_action": "Convert to categorical type for memory efficiency",
+        "affected_rows_count": 0
+      },
+      {
+        "severity": "low",
+        "column": "DeviceProtection",
+        "issue_type": "suboptimal_data_type",
+        "description": "Column appears categorical but stored as object",
+        "suggested_action": "Convert to categorical type for memory efficiency",
+        "affected_rows_count": 0
+      },
+      {
+        "severity": "low",
+        "column": "TechSupport",
+        "issue_type": "suboptimal_data_type",
+        "description": "Column appears categorical but stored as object",
+        "suggested_action": "Convert to categorical type for memory efficiency",
+        "affected_rows_count": 0
+      },
+      {
+        "severity": "low",
+        "column": "StreamingTV",
+        "issue_type": "suboptimal_data_type",
+        "description": "Column appears categorical but stored as object",
+        "suggested_action": "Convert to categorical type for memory efficiency",
+        "affected_rows_count": 0
+      },
+      {
+        "severity": "low",
+        "column": "StreamingMovies",
+        "issue_type": "suboptimal_data_type",
+        "description": "Column appears categorical but stored as object",
+        "suggested_action": "Convert to categorical type for memory efficiency",
+        "affected_rows_count": 0
+      },
+      {
+        "severity": "low",
+        "column": "Contract",
+        "issue_type": "suboptimal_data_type",
+        "description": "Column appears categorical but stored as object",
+        "suggested_action": "Convert to categorical type for memory efficiency",
+        "affected_rows_count": 0
+      },
+      {
+        "severity": "low",
+        "column": "PaymentMethod",
+        "issue_type": "suboptimal_data_type",
+        "description": "Column appears categorical but stored as object",
+        "suggested_action": "Convert to categorical type for memory efficiency",
+        "affected_rows_count": 0
+      },
+      {
+        "severity": "medium",
+        "column": "TotalCharges",
+        "issue_type": "suboptimal_data_type",
+        "description": "Column appears numeric but stored as object",
+        "suggested_action": "Convert to numeric type for better performance",
+        "affected_rows_count": 0
+      }
+    ]
+  },
+  "generated_files": {
+    "cleaning_config": "pipeline_outputs/01_discovery_telco_churn_data_20250804_151136/configs/cleaning_config_template.yaml",
+    "pipeline_config": "pipeline_outputs/01_discovery_telco_churn_data_20250804_151136/configs/pipeline_config_updated.yaml",
+    "quality_report": "pipeline_outputs/01_discovery_telco_churn_data_20250804_151136/reports/data_quality_assessment.json",
+    "basic_inspection": "pipeline_outputs/01_discovery_telco_churn_data_20250804_151136/reports/basic_inspection.json"
+  },
+  "next_steps": [
+    "Review and modify cleaning configuration as needed",
+    "Test individual pipeline components with: python 02_stage_testing.py",
+    "Run full pipeline with: python 03_full_pipeline.py"
+  ],
+  "profiling_outputs": {
+    "html_report": "pipeline_outputs/01_discovery_telco_churn_data_20250804_151136/data_profiles/data_profiling_report.html",
+    "raw_data": "pipeline_outputs/01_discovery_telco_churn_data_20250804_151136/data_profiles/raw_profiling_data.json",
+    "config_template": "pipeline_outputs/01_discovery_telco_churn_data_20250804_151136/configs/cleaning_config_template.yaml"
+  }
+}

@@ -1,0 +1,41 @@
+# DS-AutoAdvisor v2.0 Feature Flags
+# Controls gradual rollout of v2.0 features
+
+# Phase 1: Core Infrastructure (Weeks 1-3)
+infrastructure_v2: true
+enhanced_config: true
+metadata_tracking: true
+plugin_system: true
+
+# Phase 2: Data Quality Enhancements (Weeks 4-6)
+data_quality_v2: true
+automated_type_enforcement: true
+advanced_outlier_detection: true
+data_lineage_tracking: true
+
+# Phase 3: Advisor Intelligence (Weeks 7-9)
+advisor_intelligence: true
+meta_learning: false  # Not yet implemented
+fairness_analysis: false  # Not yet implemented
+performance_prediction: false  # Not yet implemented
+
+# Phase 4: Training & Scaling (Weeks 10-12)
+cloud_training: false  # Not yet implemented
+advanced_optimization: false  # Not yet implemented
+resource_management: false  # Not yet implemented
+
+# Phase 5: Evaluation & Reporting (Weeks 13-15)
+unified_dashboard: false  # Not yet implemented
+automated_reports: false  # Not yet implemented
+production_monitoring: false  # Not yet implemented
+
+# Phase 6: Extensibility & Versioning (Weeks 16-18)
+model_versioning: true  # Using MLflow
+mlflow_tracking: true  # MLflow experiment tracking
+model_registry: true  # MLflow model registry
+custom_stages: false  # Not yet implemented
+api_extensions: false  # Not yet implemented
+
+# Experimental features
+experimental_features: false
+debug_mode: true

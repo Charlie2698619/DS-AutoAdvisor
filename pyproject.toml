@@ -28,4 +28,5 @@ dependencies = [
     "shap>=0.48.0",
     "umap>=0.1.1",
     "joblib>=1.5.1",
+    "kaleido==0.2.1",
 ]

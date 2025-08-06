@@ -1,0 +1,351 @@
+advisor_intelligence:
+  fairness:
+    bias_threshold: 0.1
+    enabled: true
+    fairness_metrics:
+    - demographic_parity
+    - equalized_odds
+    - calibration
+    mitigation_strategies:
+    - reweighting
+    - preprocessing
+    - postprocessing
+    protected_attributes: []
+  meta_learning:
+    enabled: true
+    min_historical_samples: 5
+    performance_database: metadata/model_performance.db
+    schema_similarity_threshold: 0.8
+    transfer_learning: true
+  model_selection:
+    confidence_intervals: true
+    ensemble_recommendations: true
+    multi_objective_optimization: true
+    performance_prediction: true
+    risk_adjustment: true
+business_features:
+  feature_selection:
+    business_rules_file: config/business_rules.yaml
+    consistency_strategy: intersection
+    enabled: true
+    human_oversight:
+      approval_required: true
+      enabled: true
+      review_stages:
+      - initial_selection
+      - ml_validation
+      - final_confirmation
+    max_feature_count: 50
+    methods:
+      business_rules: true
+      ml_based: true
+      statistical: true
+    min_feature_count: 5
+    plugin_name: BusinessFeatureSelector
+  kpi_tracking:
+    config_file: config/business_kpis.yaml
+    correlation_tracking:
+      enabled: true
+      threshold_moderate: 0.4
+      threshold_strong: 0.7
+      update_frequency: after_training
+    custom_kpis:
+      customer_satisfaction:
+        calculation: customer_satisfaction_score
+        weight: 0.3
+      operational_efficiency:
+        calculation: model_accuracy * process_automation_score
+        weight: 0.3
+      revenue_impact:
+        calculation: churn_prevention_value - false_positive_cost
+        weight: 0.4
+    enabled: true
+    roi_analysis:
+      discount_rate: 0.1
+      enabled: true
+      time_horizon_months: 12
+  reporting:
+    automated_alerts: true
+    business_reports: true
+    output_formats:
+    - json
+    - html
+    - csv
+    report_frequency: weekly
+    stakeholder_dashboards: true
+data_cleaning:
+  automated_recommendations: true
+  encoding: onehot
+  impute_cat: mode
+  impute_num: median
+  log_file: docs/cleaning_log.json
+  missing_col_thresh: 0.5
+  missing_row_thresh: 0.5
+  outlier_method: iqr
+  outlier_removal: true
+  output_path: data/cleaned_data.csv
+  quality_gates: true
+  remove_duplicates: true
+  scaling: standard
+  validation_rules: config/data_validation_rules.yaml
+data_quality:
+  lineage:
+    enabled: true
+    generate_lineage_graph: true
+    track_quality_metrics: true
+    track_transformations: true
+  outlier_detection:
+    contamination_rate: 0.1
+    ensemble_voting: true
+    feedback_learning: true
+    interactive_review: true
+    methods:
+    - isolation_forest
+    - local_outlier_factor
+    - z_score
+    - iqr
+  profiling:
+    automated_recommendations: true
+    drift_detection: true
+    profile_comparison: true
+    quality_scoring: true
+    statistical_tests: true
+  type_enforcement:
+    auto_correction: true
+    enabled: true
+    strict_mode: false
+    validation_rules:
+      categorical_max_cardinality: 50
+      datetime_formats:
+      - ISO
+      - US
+      - EU
+      numeric_threshold: 0.8
+discovery:
+  cleaning_config_template: pipeline_outputs/01_discovery_telco_churn_data_20250804_151136/configs/cleaning_config_template.yaml
+  data_quality_score: 59.0
+  discovery_output_dir: pipeline_outputs/01_discovery_telco_churn_data_20250804_151136
+  discovery_timestamp: '2025-08-04T15:12:24.019494'
+evaluation_reporting:
+  automated_reports:
+    distribution_list: []
+    enabled: true
+    generation_triggers:
+    - pipeline_complete
+    - scheduled
+    insights_extraction: true
+    templates:
+    - executive
+    - technical
+    - data_scientist
+  dashboard:
+    comparative_analysis: true
+    enabled: true
+    export_formats:
+    - html
+    - pdf
+    interactive_plots: true
+    real_time_updates: true
+    template: comprehensive
+  production_monitoring:
+    alert_thresholds:
+      data_quality_score: 0.8
+      drift_score: 0.2
+      performance_drop: 0.05
+    data_quality_monitoring: true
+    drift_detection: true
+    performance_alerts: true
+    retraining_triggers: true
+extensibility:
+  extension_points:
+    api_extensions: true
+    custom_stages: true
+    external_integrations: true
+    pipeline_hooks: true
+  plugins:
+    deep_learning:
+      enabled: false
+      frameworks:
+      - tensorflow
+      - pytorch
+    domain_specific:
+      domains:
+      - finance
+      - healthcare
+      - marketing
+      enabled: true
+    feature_selection:
+      available_plugins:
+      - recursive_feature_elimination
+      - mutual_info
+      - lasso
+      enabled: true
+    sampling:
+      available_plugins:
+      - smote
+      - adasyn
+      - random_under
+      - tomek_links
+      enabled: true
+  versioning:
+    models:
+      comparison_metrics:
+      - accuracy
+      - f1_score
+      enabled: true
+      retention_policy: keep_best_5
+      storage_backend: local
+    reports:
+      archive_old_versions: true
+      enabled: true
+      version_on_config_change: true
+global:
+  csv_delimiter: ','
+  csv_encoding: utf-8
+  data_input_path: data/telco_churn_data.csv
+  deployment_mode: local
+  environment: development
+  human_intervention:
+    approval_required:
+    - data_cleaning
+    - ml_advisory
+    - model_training
+    confidence_thresholds:
+      data_cleaning: 0.8
+      ml_advisory: 0.85
+      model_evaluation: 0.95
+      model_training: 0.9
+    enabled: true
+    mode: interactive
+  metadata_store_path: metadata/pipeline_metadata.db
+  output_base_dir: pipeline_outputs
+  project_name: DS-AutoAdvisor Pipeline
+  random_state: 42
+  target_column: Churn
+  version: '2.0'
+  versioning_enabled: true
+infrastructure:
+  feature_flags:
+    business_alignment: true
+    data_quality_v2: true
+    enhanced_logging: true
+    lineage_tracking: true
+    metadata_tracking: true
+    mlflow_tracking: true
+    plugin_system: true
+  logging:
+    correlation_tracking: true
+    level: INFO
+    log_file: logs/pipeline_v2.log
+    performance_metrics: true
+    structured: true
+  metadata:
+    connection_string: sqlite:///metadata/pipeline_metadata.db
+    enabled: true
+    retention_days: 90
+    store_type: sqlite
+    track_lineage: true
+    track_performance: true
+  mlflow:
+    artifact_location: ./mlruns
+    auto_log: true
+    experiment_name: ds-autoadvisor-v2
+    log_artifacts: true
+    log_system_metrics: true
+    model_registry_uri: null
+    tracking_uri: sqlite:///mlruns/mlflow.db
+  plugins:
+    auto_discovery: true
+    enabled: true
+    plugin_dir: plugins
+    validation_required: true
+ml_advisory:
+  assumption_testing:
+    correlation_threshold: 0.8
+    normality_alpha: 0.05
+    verbose: true
+    vif_threshold: 10.0
+  fairness_analysis: true
+  meta_learning_enabled: true
+  risk_assessment: true
+model_evaluation:
+  automated_reports: true
+  enable_interpretability: true
+  enable_learning_curves: true
+  enable_residual_analysis: true
+  enable_shap: true
+  enable_stability_analysis: true
+  output_dir: evaluation_results
+  production_monitoring: true
+  training_report_path: comprehensive_training_report.json
+  unified_dashboard: true
+  verbose: true
+model_training:
+  advanced_optimization: true
+  cloud_execution: false
+  enable_tuning: true
+  encoding_strategy: onehot
+  include_advanced: true
+  include_ensemble: true
+  max_models: 10
+  model_dir: models
+  resource_limits: true
+  save_models: true
+  scaling_strategy: standard
+  test_size: 0.2
+  tuning_method: grid
+  validation_size: 0.2
+  verbose: true
+profiling:
+  enable_advanced_stats: true
+  generate_data_lineage: true
+  output_dir: docs
+  quality_assessment: true
+training_scaling:
+  cloud_runner:
+    auto_scaling: true
+    cost_limit_per_hour: 50.0
+    enabled: false
+    instance_type: ml.m5.large
+    max_instances: 4
+    provider: aws
+  hyperparameter_optimization:
+    early_stopping: true
+    framework: optuna
+    multi_fidelity: true
+    n_trials: 100
+    parallel_trials: 4
+    timeout_per_trial: 300
+  resource_management:
+    auto_skip_expensive: true
+    cpu_limit_cores: 4
+    memory_limit_gb: 8
+    per_model_time_limit: 1800
+    resource_monitoring: true
+  training_optimization:
+    checkpoint_frequency: 10
+    incremental_learning: true
+    resume_interrupted: true
+    warm_starting: true
+workflow:
+  error_handling:
+    recovery_strategies: true
+    retry_attempts: 3
+    skip_failed_stages: true
+    stop_on_error: false
+  logging:
+    console_output: true
+    level: INFO
+    log_file: pipeline.log
+    structured_logging: true
+  parallel_execution: false
+  plugin_stages:
+  - feature_selection
+  - business_analysis
+  stage_dependencies: true
+  stages:
+  - profiling
+  - data_cleaning
+  - ml_advisory
+  - model_training
+  - model_evaluation

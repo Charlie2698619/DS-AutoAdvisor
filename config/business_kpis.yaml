@@ -1,0 +1,187 @@
+# Business KPIs Configuration for DS-AutoAdvisor v2.0
+# ===================================================
+
+# Business Context
+business_context:
+  industry: "telecommunications"
+  use_case: "churn_prediction"
+  currency: "USD"
+  reporting_period: "monthly"
+  
+  # Default business parameters
+  default_values:
+    customer_lifetime_value: 1200
+    acquisition_cost: 150
+    retention_cost: 50
+    average_monthly_revenue: 75
+    churn_rate_baseline: 0.15
+
+# Key Performance Indicators
+kpis:
+  # Operational KPIs
+  model_accuracy:
+    description: "Overall model prediction accuracy"
+    calculation_method: "direct"
+    weight: 0.15
+    target_value: 0.85
+    threshold_warning: 0.80
+    threshold_critical: 0.75
+    unit: "ratio"
+    higher_is_better: true
+    category: "operational"
+
+  model_precision:
+    description: "Model precision for churn prediction"
+    calculation_method: "direct"
+    weight: 0.15
+    target_value: 0.80
+    threshold_warning: 0.75
+    threshold_critical: 0.70
+    unit: "ratio"
+    higher_is_better: true
+    category: "operational"
+
+  model_recall:
+    description: "Model recall for churn prediction"
+    calculation_method: "direct"
+    weight: 0.15
+    target_value: 0.75
+    threshold_warning: 0.70
+    threshold_critical: 0.65
+    unit: "ratio"
+    higher_is_better: true
+    category: "operational"
+
+  # Revenue Impact KPIs
+  churn_prevention_value:
+    description: "Value from prevented churn cases"
+    calculation_method: "formula"
+    formula: "true_positives * customer_lifetime_value"
+    weight: 0.25
+    target_value: 120000
+    unit: "currency"
+    higher_is_better: true
+    category: "revenue"
+
+  false_positive_cost:
+    description: "Cost of unnecessary retention efforts"
+    calculation_method: "formula"
+    formula: "false_positives * retention_cost"
+    weight: 0.10
+    higher_is_better: false
+    unit: "currency"
+    category: "cost"
+
+  missed_churn_cost:
+    description: "Cost of missed churn cases"
+    calculation_method: "formula"
+    formula: "false_negatives * acquisition_cost"
+    weight: 0.15
+    higher_is_better: false
+    unit: "currency"
+    category: "cost"
+
+  # Customer Satisfaction KPIs
+  customer_satisfaction_score:
+    description: "Customer satisfaction with retention efforts"
+    calculation_method: "direct"
+    weight: 0.05
+    target_value: 4.2
+    threshold_warning: 3.8
+    threshold_critical: 3.5
+    unit: "score"
+    higher_is_better: true
+    category: "satisfaction"
+
+# ROI Calculation Parameters
+roi_analysis:
+  enabled: true
+  calculation_method: "comprehensive"
+  
+roi_parameters:
+  # Investment costs (one-time and recurring)
+  investment_costs:
+    model_development: 50000
+    data_infrastructure: 25000
+    training_and_deployment: 15000
+    monthly_maintenance: 3000
+    annual_infrastructure: 12000
+    
+  # Benefit categories
+  benefit_sources:
+    churn_prevention_savings: "prevented_churn_count * customer_lifetime_value"
+    reduced_acquisition_costs: "prevented_churn_count * acquisition_cost"
+    operational_efficiency: "automated_decisions_count * 2"  # $2 saved per automated decision
+    
+  # Time horizon for calculations
+  analysis_period_months: 12
+  discount_rate: 0.10  # 10% annual discount rate
+
+# Business-ML Correlation Tracking
+correlation_metrics:
+  # Which ML metrics to correlate with business outcomes
+  ml_metrics:
+    - "accuracy"
+    - "precision"
+    - "recall"
+    - "f1_score"
+    - "roc_auc"
+    
+  business_metrics:
+    - "actual_churn_rate"
+    - "retention_campaign_success_rate"
+    - "customer_satisfaction_score"
+    - "revenue_retention_rate"
+    
+  # Correlation thresholds
+  strong_correlation_threshold: 0.7
+  moderate_correlation_threshold: 0.4
+  
+# Reporting Configuration
+reporting:
+  # How often to generate business reports
+  frequency: "weekly"
+  
+  # Recipients for different report types
+  stakeholders:
+    executives:
+      - "roi_summary"
+      - "kpi_dashboard"
+      - "strategic_insights"
+    
+    data_science_team:
+      - "model_performance"
+      - "ml_business_correlation"
+      - "feature_importance_business_impact"
+    
+    operations:
+      - "operational_metrics"
+      - "cost_benefit_analysis"
+      - "efficiency_metrics"
+  
+  # Alert thresholds
+  alerts:
+    critical_kpi_threshold: "critical"
+    performance_degradation_threshold: 0.05  # 5% drop
+    roi_negative_threshold: -0.1  # -10% ROI
+
+# Integration Settings
+integration:
+  # Where to save business metrics
+  output_directory: "evaluation_results/business_metrics"
+  
+  # File formats for reports
+  report_formats:
+    - "json"
+    - "html"
+    - "csv"
+  
+  # Dashboard integration
+  dashboard:
+    enabled: true
+    update_frequency: "real_time"
+    metrics_to_display:
+      - "model_accuracy"
+      - "churn_prevention_value"
+      - "roi_percentage"
+      - "customer_satisfaction_score"

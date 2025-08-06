@@ -1,0 +1,6 @@
+{
+  "timestamp": "2025-08-04T15:12:19.169210",
+  "html_report": "pipeline_outputs/01_discovery_telco_churn_data_20250804_151136/data_profiles/data_profiling_report.html",
+  "raw_data": "pipeline_outputs/01_discovery_telco_churn_data_20250804_151136/data_profiles/raw_profiling_data.json",
+  "config_template": "config/cleaning_config_template.yaml"
+}

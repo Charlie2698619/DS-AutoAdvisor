@@ -1,5 +1,85 @@
-# Business Rules Configuration
+# Business Rules Configuration for DS-AutoAdvisor v2.0
+# ===================================================
 # Domain-specific constraints and human intervention guidelines
+
+# Feature Selection Configuration
+feature_selection:
+  # Selection rules
+  rules:
+    - name: "exclude_personal_identifiers"
+      rule_type: "must_exclude"
+      features: ["customer_id", "email", "phone", "ssn", "address"]
+      reason: "Privacy and GDPR compliance"
+      priority: 10
+      active: true
+
+    - name: "include_primary_business_drivers"
+      rule_type: "must_include"
+      features: ["tenure", "monthly_charges", "total_charges"]
+      reason: "Core business metrics for churn prediction"
+      priority: 8
+      active: true
+
+    - name: "exclude_leakage_features"
+      rule_type: "must_exclude"
+      features: ["churn_score", "risk_level", "retention_flag"]
+      reason: "Prevent data leakage - these are post-outcome features"
+      priority: 9
+      active: true
+
+    - name: "prefer_demographic_features"
+      rule_type: "preference"
+      features: ["gender", "senior_citizen", "partner", "dependents"]
+      reason: "Demographic insights valuable for business strategy"
+      priority: 5
+      active: true
+
+    - name: "include_service_usage"
+      rule_type: "must_include"
+      features: ["internet_service", "online_security", "tech_support"]
+      reason: "Service utilization directly impacts churn"
+      priority: 7
+      active: true
+
+  # Multi-model consistency strategy
+  multi_model_consistency:
+    strategy: "intersection"  # "intersection", "union", "weighted_voting"
+    min_feature_count: 5
+    max_feature_count: 50
+    
+  # Selection methods configuration
+  methods:
+    statistical:
+      enabled: true
+      p_value_threshold: 0.05
+      correlation_threshold: 0.1
+    ml_based:
+      enabled: true
+      importance_threshold: 0.01
+      cross_validation_folds: 5
+    business_rules:
+      enabled: true
+      enforce_must_include: true
+      enforce_must_exclude: true
+
+# Business Context
+business_context:
+  domain: "telecommunications"
+  use_case: "churn_prediction"
+  industry_standards:
+    - "GDPR_compliance"
+    - "fair_lending_practices"
+    - "customer_privacy"
+  
+  business_objectives:
+    primary: "reduce_churn"
+    secondary: "increase_revenue"
+    tertiary: "improve_customer_satisfaction"
+  
+  constraints:
+    regulatory: ["GDPR", "PCI_DSS", "Fair_Credit_Reporting"]
+    ethical: ["fairness", "transparency", "explainability"]
+    operational: ["real_time_scoring", "model_interpretability"]
 
 data_constraints:
   # Features that should never be automatically dropped

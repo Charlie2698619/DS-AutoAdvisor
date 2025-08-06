@@ -1,0 +1,144 @@
+{
+  "overall_score": 59.0,
+  "total_issues": 12,
+  "issues_by_severity": {
+    "low": 11,
+    "medium": 1,
+    "high": 0,
+    "critical": 0
+  },
+  "column_scores": {
+    "customerID": 100.0,
+    "gender": 95.0,
+    "SeniorCitizen": 100.0,
+    "Partner": 100.0,
+    "Dependents": 100.0,
+    "tenure": 100.0,
+    "PhoneService": 100.0,
+    "MultipleLines": 95.0,
+    "InternetService": 95.0,
+    "OnlineSecurity": 95.0,
+    "OnlineBackup": 95.0,
+    "DeviceProtection": 95.0,
+    "TechSupport": 95.0,
+    "StreamingTV": 95.0,
+    "StreamingMovies": 95.0,
+    "Contract": 95.0,
+    "PaperlessBilling": 100.0,
+    "PaymentMethod": 95.0,
+    "MonthlyCharges": 100.0,
+    "TotalCharges": 90.0,
+    "Churn": 100.0
+  },
+  "recommendations": [
+    "Optimize data types for better memory usage and performance",
+    "High number of data quality issues detected - consider comprehensive data cleaning"
+  ],
+  "metadata": {
+    "dataset_shape": [
+      7043,
+      21
+    ],
+    "memory_usage": "8166475",
+    "assessment_timestamp": "2025-08-04T15:12:23.974376"
+  },
+  "target_column": "Churn",
+  "issues": [
+    {
+      "severity": "low",
+      "column": "gender",
+      "issue_type": "suboptimal_data_type",
+      "description": "Column appears categorical but stored as object",
+      "suggested_action": "Convert to categorical type for memory efficiency",
+      "affected_rows_count": 0
+    },
+    {
+      "severity": "low",
+      "column": "MultipleLines",
+      "issue_type": "suboptimal_data_type",
+      "description": "Column appears categorical but stored as object",
+      "suggested_action": "Convert to categorical type for memory efficiency",
+      "affected_rows_count": 0
+    },
+    {
+      "severity": "low",
+      "column": "InternetService",
+      "issue_type": "suboptimal_data_type",
+      "description": "Column appears categorical but stored as object",
+      "suggested_action": "Convert to categorical type for memory efficiency",
+      "affected_rows_count": 0
+    },
+    {
+      "severity": "low",
+      "column": "OnlineSecurity",
+      "issue_type": "suboptimal_data_type",
+      "description": "Column appears categorical but stored as object",
+      "suggested_action": "Convert to categorical type for memory efficiency",
+      "affected_rows_count": 0
+    },
+    {
+      "severity": "low",
+      "column": "OnlineBackup",
+      "issue_type": "suboptimal_data_type",
+      "description": "Column appears categorical but stored as object",
+      "suggested_action": "Convert to categorical type for memory efficiency",
+      "affected_rows_count": 0
+    },
+    {
+      "severity": "low",
+      "column": "DeviceProtection",
+      "issue_type": "suboptimal_data_type",
+      "description": "Column appears categorical but stored as object",
+      "suggested_action": "Convert to categorical type for memory efficiency",
+      "affected_rows_count": 0
+    },
+    {
+      "severity": "low",
+      "column": "TechSupport",
+      "issue_type": "suboptimal_data_type",
+      "description": "Column appears categorical but stored as object",
+      "suggested_action": "Convert to categorical type for memory efficiency",
+      "affected_rows_count": 0
+    },
+    {
+      "severity": "low",
+      "column": "StreamingTV",
+      "issue_type": "suboptimal_data_type",
+      "description": "Column appears categorical but stored as object",
+      "suggested_action": "Convert to categorical type for memory efficiency",
+      "affected_rows_count": 0
+    },
+    {
+      "severity": "low",
+      "column": "StreamingMovies",
+      "issue_type": "suboptimal_data_type",
+      "description": "Column appears categorical but stored as object",
+      "suggested_action": "Convert to categorical type for memory efficiency",
+      "affected_rows_count": 0
+    },
+    {
+      "severity": "low",
+      "column": "Contract",
+      "issue_type": "suboptimal_data_type",
+      "description": "Column appears categorical but stored as object",
+      "suggested_action": "Convert to categorical type for memory efficiency",
+      "affected_rows_count": 0
+    },
+    {
+      "severity": "low",
+      "column": "PaymentMethod",
+      "issue_type": "suboptimal_data_type",
+      "description": "Column appears categorical but stored as object",
+      "suggested_action": "Convert to categorical type for memory efficiency",
+      "affected_rows_count": 0
+    },
+    {
+      "severity": "medium",
+      "column": "TotalCharges",
+      "issue_type": "suboptimal_data_type",
+      "description": "Column appears numeric but stored as object",
+      "suggested_action": "Convert to numeric type for better performance",
+      "affected_rows_count": 0
+    }
+  ]
+}
