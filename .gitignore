@@ -1,4 +1,10 @@
-# Python
+# =============================================================================
+# DS-AutoAdvisor .gitignore
+# Keep only essential scripts, configs, and documentation
+# Ignore all outputs, generated files, and temporary data
+# =============================================================================
+
+# Python Environment
 __pycache__/
 *.py[cod]
 *$py.class
@@ -8,31 +14,147 @@ env/
 venv/
 .venv/
 ENV/
+.env
 
-# Data files (optional - you might want to include sample data)
-data/*.csv
-data/*.json
+# =============================================================================
+# PIPELINE OUTPUTS (IGNORE ALL GENERATED CONTENT)
+# =============================================================================
 
-# Logs and temporary files
+# All pipeline output directories
+pipeline_outputs/
+cache/
+metadata/
+
+# MLflow tracking and experiments
+mlruns/
+mlflow_ui.sh
+
+# Logs and audit trails
+logs/
 *.log
+audit.log
+model_analysis.log
 temp_*
 *.tmp
+
+# =============================================================================
+# DATA FILES (IGNORE INPUT DATA)
+# =============================================================================
+
+# Raw data (keep structure but ignore actual files)
+data/*.csv
+data/*.json
+data/*.xlsx
+data/*.parquet
+data/*.txt
+data/*.tsv
+
+# Processed data
+cleaned_data.csv
+*_cleaned.csv
+*_processed.*
+
+# =============================================================================
+# MODEL ARTIFACTS (IGNORE ALL TRAINED MODELS)
+# =============================================================================
 
 # Model files
 models/
 *.pkl
 *.joblib
+*.h5
+*.pb
+*.onnx
+*.bin
 
-# IDE
+# Model evaluation outputs
+evaluation_results/
+reports/
+
+# =============================================================================
+# GENERATED DOCUMENTATION & CONFIGS (IGNORE GENERATED)
+# =============================================================================
+
+# Generated docs (keep templates, ignore generated)
+docs/data_profiling_report.html
+docs/raw_profiling_data.json
+docs/cleaning_config_template.yaml
+docs/*.html
+docs/*.json
+
+# Auto-generated configs (keep base configs)
+config/*_generated.yaml
+config/*_updated.yaml
+config/pipeline_config_updated.yaml
+
+# =============================================================================
+# DEVELOPMENT & IDE
+# =============================================================================
+
+# IDE files
 .vscode/
 .idea/
 *.swp
 *.swo
+.spyderproject
+.spyproject
 
-# OS
+# Jupyter Notebooks
+.ipynb_checkpoints/
+*.ipynb
+
+# =============================================================================
+# SYSTEM FILES
+# =============================================================================
+
+# OS files
 .DS_Store
 Thumbs.db
+.directory
 
-# Jupyter Notebooks checkpoints
-.ipynb_checkpoints/
+# Temporary files
+*.bak
+*.backup
+*~
+.#*
+
+# =============================================================================
+# DEPLOYMENT & DISTRIBUTION
+# =============================================================================
+
+# Distribution builds
+build/
+dist/
+*.egg-info/
+
+# Docker
+.dockerignore
+docker-compose.override.yml
+
+# =============================================================================
+# SECURITY & SENSITIVE DATA
+# =============================================================================
+
+# Environment variables and secrets
+.env
+.env.local
+.env.*.local
+*.key
+*.pem
+config.ini
+
+# =============================================================================
+# WHAT TO KEEP (ESSENTIAL PROJECT FILES)
+# =============================================================================
+# ✅ Core scripts: 01_data_discovery.py, 02_stage_testing.py, 03_full_pipeline.py
+# ✅ Source code: src/, utils/
+# ✅ Base configs: config/unified_config_v3.yaml, config/business_*.yaml
+# ✅ Documentation: README.md, QUICK_START.md
+# ✅ Setup: requirements.txt, pyproject.toml, uv.lock
+# ✅ Archive: archive/ (for reference)
+# ✅ Sample data structure: data/ (empty folders)
+# 
+# ❌ All pipeline outputs, logs, generated configs, trained models
+# ❌ MLflow runs, cache, temporary files
+# ❌ IDE settings, OS files, Python cache
 

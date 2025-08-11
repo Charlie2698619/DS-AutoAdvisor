@@ -20,11 +20,21 @@ This guide provides a comprehensive understanding of all evaluation metrics used
 - **Median Absolute Error** - Robust typical performance
 - **Mean Squared Logarithmic Error** - Relative error for positive targets
 
+**🎯 Advanced SHAP Analysis (New!):**
+- **Model-Agnostic Support** - Works with any sklearn-compatible model
+- **Multi-Explainer Fallback** - Automatic TreeExplainer → LinearExplainer → KernelExplainer → PermutationExplainer
+- **Directional Impact Analysis** - Shows positive/negative feature effects with color coding
+- **Log-Odds Secondary Axis** - Interpretable probability scale for classification models
+- **Statistical Error Bars** - Confidence intervals for permutation importance
+- **Configurable Visualization** - Top-K features, colors, and plot options via YAML config
+- **Enhanced Interpretability** - Clear business insights from feature importance patterns
+
 **Why These Metrics Matter:**
 - 🎯 **Better Imbalanced Data Handling** - PR-AUC, Balanced Accuracy, MCC
 - 📊 **Complete Performance Picture** - All confusion matrix elements covered
 - 🔍 **Risk Assessment** - Max Error, Median AE for worst/typical cases
 - ⚖️ **Probability Quality** - Log Loss for calibrated predictions
+- 🧠 **Model Interpretability** - Advanced SHAP with directional analysis and statistical confidence
 - 🏆 **Industry Standards** - Metrics aligned with academic and business best practices
 
 ---
@@ -882,7 +892,20 @@ else:
 
 ---
 
-### **2. SHAP (Feature Importance) Analysis**
+### **2. SHAP (Feature Importance) Analysis** 🆕 **Enhanced in v2.0**
+
+#### **🎯 New SHAP Features:**
+
+**Model-Agnostic Analysis:**
+- **Multi-Explainer Fallback Chain**: TreeExplainer → LinearExplainer → KernelExplainer → PermutationExplainer
+- **Automatic Model Type Detection**: Seamlessly handles any sklearn-compatible model
+- **Robust Error Handling**: Graceful fallback when specific explainers fail
+
+**Enhanced Visualizations:**
+- **📊 Directional Impact Analysis**: Shows positive/negative feature effects with color coding
+- **📈 Log-Odds Secondary Axis**: Provides interpretable probability scale for classification
+- **📉 Error Bars**: Statistical confidence intervals for permutation importance
+- **⚙️ Configurable Top-K Features**: Adjustable via unified_config_v2.yaml
 
 #### **SHAP Values Interpretation:**
 
@@ -891,6 +914,17 @@ else:
 | **Feature Importance Concentration** | How focused the model is | <0.8 (not too concentrated) |
 | **Top 5 Features Coverage** | Cumulative importance | >60% (sufficient signal) |
 | **Feature Stability** | Consistency across samples | >0.8 correlation |
+| **Directional Consistency** 🆕 | Positive/negative impact clarity | >70% consistent direction |
+| **Log-Odds Range** 🆕 | Probability impact magnitude | 0.1-10 reasonable range |
+
+#### **📊 Enhanced Plot Features:**
+
+| **Feature** | **Purpose** | **Configuration** |
+|-------------|-------------|-------------------|
+| **Color-Coded Direction** | Show positive (green) vs negative (red) impact | `show_direction: true` |
+| **Log-Odds Axis** | Interpretable probability scale | `add_log_odds_axis: true` |
+| **Error Bars** | Statistical confidence for permutation | `permutation_error_bars: true` |
+| **Top-K Selection** | Number of features to display | `top_k_features: 15` |
 
 #### **Feature Importance Quality:**
 
@@ -899,6 +933,23 @@ else:
 | **Balanced Importance** | Multiple features matter | Good generalization | ✅ Robust model |
 | **Single Dominant Feature** | One feature >50% | Risk of overfitting | ⚠️ Investigate |
 | **Noisy Importance** | Inconsistent rankings | Poor feature quality | 🔧 Feature engineering |
+| **Clear Directional Impact** 🆕 | Consistent pos/neg effects | Interpretable model | ✅ Business-ready |
+| **Mixed Directions** 🆕 | Same feature both pos/neg | Complex interactions | 🔍 Deeper analysis |
+
+#### **🔧 Configuration Example:**
+
+```yaml
+# unified_config_v2.yaml
+model_evaluation:
+  feature_importance:
+    top_k_features: 20              # Show top 20 features
+    show_direction: true            # Enable directional analysis
+    add_log_odds_axis: true         # Add log-odds secondary axis
+    permutation_error_bars: true    # Show confidence intervals
+  enable_shap: true
+  max_shap_samples: 1000           # Samples for SHAP calculation
+  n_permutations: 100              # Permutation importance iterations
+```
 
 ---
 
@@ -1430,17 +1481,54 @@ Risk Assessment:
 
 ```yaml
 # Add to unified_config_v2.yaml
+model_evaluation:
+  # Core evaluation settings
+  enable_shap: true
+  enable_learning_curves: true
+  enable_residual_analysis: true
+  enable_stability_analysis: true
+  enable_interpretability: true
+  save_plots: true
+  plot_format: "html"  # or "png"
+  plot_dpi: 300
+  
+  # 🆕 Enhanced SHAP Configuration
+  feature_importance:
+    top_k_features: 15              # Number of top features to display
+    show_direction: true            # Show positive/negative impact with colors
+    add_log_odds_axis: true         # Add interpretable probability scale
+    permutation_error_bars: true    # Show statistical confidence intervals
+  
+  # Performance settings
+  max_shap_samples: 1000           # Samples for SHAP calculation
+  n_permutations: 100              # Permutation importance iterations
+  n_bootstrap_samples: 100         # Bootstrap samples for stability
+  
+  # Model selection criteria
+  selection_criteria:
+    weights:
+      performance: 0.40
+      stability: 0.30
+      interpretability: 0.20
+      efficiency: 0.10
+    
+    thresholds:
+      min_accuracy: 0.80
+      min_f1: 0.70
+      min_r2: 0.70
+      min_stability: 0.75
+      min_interpretability: 0.60
+
 step_05_evaluation:
-  # Current metrics (classification)
+  # Legacy metrics configuration (for backward compatibility)
   classification_metrics:
-    primary: ["accuracy", "f1_score", "roc_auc"]
-    secondary: ["precision", "recall", "log_loss"]
+    primary: ["accuracy", "f1_score", "roc_auc", "pr_auc"]
+    secondary: ["precision", "recall", "log_loss", "balanced_accuracy", "mcc"]
     custom: []
   
-  # Current metrics (regression)  
   regression_metrics:
     primary: ["r2_score", "rmse", "mae"]
-    secondary: ["mape", "explained_variance", "max_error"]
+    secondary: ["mape", "explained_variance", "max_error", "median_ae"]
     custom: []
   
   # Future enhancements
@@ -1466,25 +1554,55 @@ step_05_evaluation:
       time_column: null
       window_analysis: true
       stability_tracking: true
-  
-  # Model selection criteria
-  selection_criteria:
-    weights:
-      performance: 0.40
-      stability: 0.30
-      interpretability: 0.20
-      efficiency: 0.10
-    
-    thresholds:
-      min_accuracy: 0.80
-      min_f1: 0.70
-      min_r2: 0.70
-      min_stability: 0.75
-    
-    business_constraints:
-      max_training_time: 3600  # seconds
-      max_inference_time: 1.0  # seconds
-      min_interpretability: 0.60
+```
 ```
 
-This comprehensive guide provides everything you need to understand, interpret, and improve your model evaluation process. Use it as a reference for making informed decisions about model selection and performance assessment in your DS-AutoAdvisor projects.
+### **🚀 CLI Usage Examples**
+
+```bash
+# Basic usage with default enhanced SHAP settings
+python src/5_evaluation/evaluator.py data/test.csv target_column
+
+# Using custom configuration with enhanced SHAP
+python src/5_evaluation/evaluator.py data/test.csv target_column \
+  --config config/unified_config_v2.yaml
+
+# Override specific SHAP settings via CLI
+python src/5_evaluation/evaluator.py data/test.csv target_column \
+  --models-dir custom_models --disable-plots
+
+# Expected output with enhanced SHAP:
+# ✅ Analysis complete!
+# 📁 Results saved to: analysis_output
+# 🔍 Models analyzed: ['RandomForest', 'LogisticRegression', 'XGBoost']
+# 📊 SHAP features analyzed: Top 15 features
+# 🎯 Feature direction analysis: Enabled
+# 📈 Log-odds axis: Enabled
+# 📉 Error bars: Enabled
+```
+
+This comprehensive guide provides everything you need to understand, interpret, and improve your model evaluation process with advanced SHAP analysis capabilities. Use it as a reference for making informed decisions about model selection and performance assessment in your DS-AutoAdvisor projects.
+
+---
+
+## 🆕 **v2.0 SHAP Enhancement Summary**
+
+### **Key Improvements:**
+1. **🔄 Model-Agnostic Support**: Works with any sklearn-compatible model via intelligent explainer fallback
+2. **🎨 Enhanced Visualizations**: Directional impact with color coding, log-odds axis, error bars
+3. **⚙️ Configurable Interface**: Top-K features, plot options via unified_config_v2.yaml
+4. **📊 Statistical Rigor**: Confidence intervals and robust error handling
+5. **🔧 CLI Integration**: Enhanced command-line interface with configuration loading
+
+### **Business Impact:**
+- **Better Model Interpretability**: Clear positive/negative feature impact visualization
+- **Statistical Confidence**: Error bars provide reliability assessment
+- **Probability Interpretation**: Log-odds axis makes predictions business-friendly
+- **Flexible Configuration**: Adapt visualizations to specific use cases
+- **Production Ready**: Robust fallback mechanisms ensure reliability across model types
+
+### **Technical Innovation:**
+- **Multi-Explainer Architecture**: Automatic fallback chain ensures analysis always succeeds
+- **Adaptive Configuration**: Self-configuring based on model characteristics
+- **Enhanced Error Handling**: Graceful degradation with informative messaging
+- **Performance Optimization**: Configurable sampling for large datasets

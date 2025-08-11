@@ -29,8 +29,23 @@ from sklearn.metrics import (
 from sklearn.inspection import permutation_importance, partial_dependence
 from sklearn.calibration import calibration_curve
 import joblib
-import shap
-import kaleido
+
+# Try to import SHAP - it's optional
+try:
+    import shap
+    HAS_SHAP = True
+except ImportError:
+    HAS_SHAP = False
+    warnings.warn("SHAP not available. Install with: pip install shap")
+
+# Try to import kaleido for PNG export
+try:
+    import kaleido
+    HAS_KALEIDO = True
+except ImportError:
+    HAS_KALEIDO = False
+    warnings.warn("Kaleido not available for PNG export. Install with: pip install kaleido")
+
 from scipy import stats
 from scipy.stats import pearsonr, spearmanr
 import umap
@@ -76,9 +91,18 @@ class AnalysisConfig:
     max_shap_samples: int = 1000 # Max samples for SHAP analysis
     n_models_to_evaluate: int = 3 # Number of top models to evaluate
     
+    # Feature importance configuration
+    top_k_features: int = 15  # Number of top features to show in plots
+    show_direction: bool = True  # Show positive/negative impact direction
+    add_log_odds_axis: bool = True  # Add log-odds scale for binary classification
+    permutation_error_bars: bool = True  # Show error bars in permutation importance
+    
     # Stability testing
     noise_levels: List[float] = field(default_factory=lambda: [0.01, 0.05, 0.1, 0.2])
     dropout_rates: List[float] = field(default_factory=lambda: [0.05, 0.1, 0.2, 0.3])
+    
+    # Reproducibility
+    random_state: int = 42
     
     # Logging
     verbose: bool = True
@@ -313,17 +337,34 @@ class StabilityAnalyzer(BaseAnalyzer):
         # Prediction consistency
         consistency = self._test_prediction_consistency(model, X_test)
         
+        # Calculate normalized stability scores (0 to 1, where 1 is most stable)
+        normalized_noise = noise_stability["avg_score_retention"]
+        normalized_dropout = dropout_stability["avg_score_retention"]  
+        normalized_bootstrap = bootstrap_stability.get("stability_score", 
+                                                      1 - bootstrap_stability.get("score_std_normalized", 1))
+        normalized_consistency = consistency.get("consistency_score", 0.0)
+        
+        # Weighted overall stability score
+        overall_stability = (
+            normalized_noise * 0.3 +           # Noise robustness
+            normalized_dropout * 0.3 +         # Feature dropout robustness  
+            normalized_bootstrap * 0.25 +      # Bootstrap stability
+            normalized_consistency * 0.15      # Prediction consistency
+        )
+        
         return {
             "baseline_score": baseline_score,
             "noise_stability": noise_stability,
             "dropout_stability": dropout_stability,
             "bootstrap_stability": bootstrap_stability,
             "prediction_consistency": consistency,
-            "overall_stability": np.mean([
-                noise_stability["avg_score_retention"],
-                dropout_stability["avg_score_retention"],
-                bootstrap_stability["score_std_normalized"]
-            ])
+            "stability_components": {
+                "normalized_noise": normalized_noise,
+                "normalized_dropout": normalized_dropout,
+                "normalized_bootstrap": normalized_bootstrap,
+                "normalized_consistency": normalized_consistency
+            },
+            "overall_stability": float(overall_stability)
         }
     
     def _get_baseline_score(self, model, X_test: pd.DataFrame, 
@@ -346,12 +387,20 @@ class StabilityAnalyzer(BaseAnalyzer):
         if len(numeric_cols) == 0:
             # No numeric features to add noise to
             self.logger.warning("No numeric features found for noise robustness testing")
+            baseline = self._get_baseline_score(model, X_test, y_test, target_type)
             return {
                 "noise_levels": self.config.noise_levels,
-                "scores": [self._get_baseline_score(model, X_test, y_test, target_type)] * len(self.config.noise_levels),
+                "scores": [baseline] * len(self.config.noise_levels),
                 "score_retentions": [1.0] * len(self.config.noise_levels),
-                "avg_score_retention": 1.0
+                "avg_score_retention": 1.0,
+                "baseline_score": baseline,
+                "score_mean": baseline,
+                "score_std": 0.0,
+                "score_std_normalized": 0.0
             }
+        
+        # Set random seed for reproducibility
+        np.random.seed(getattr(self.config, 'random_state', 42))
         
         scores = []
         for noise_level in self.config.noise_levels:
@@ -372,52 +421,92 @@ class StabilityAnalyzer(BaseAnalyzer):
         
         baseline = self._get_baseline_score(model, X_test, y_test, target_type)
         score_retentions = [s / baseline if baseline != 0 else 0 for s in scores]
+        score_std = float(np.std(scores))
+        score_mean = float(np.mean(scores))
         
         return {
             "noise_levels": self.config.noise_levels,
             "scores": scores,
             "score_retentions": score_retentions,
-            "avg_score_retention": float(np.mean(score_retentions))
+            "avg_score_retention": float(np.mean(score_retentions)),
+            "baseline_score": baseline,
+            "score_mean": score_mean,
+            "score_std": score_std,
+            "score_std_normalized": float(score_std / (score_mean + 1e-8))
         }
     
     def _test_dropout_robustness(self, model, X_test: pd.DataFrame, 
                                y_test: pd.Series, target_type: str) -> Dict[str, Any]:
-        """Test robustness to feature dropout"""
+        """Test robustness to feature dropout by zeroing out features instead of dropping columns"""
         
         scores = []
         baseline = self._get_baseline_score(model, X_test, y_test, target_type)
         
+        # Set random seed for reproducibility if available
+        np.random.seed(getattr(self.config, 'random_state', 42))
+        
         for dropout_rate in self.config.dropout_rates:
-            # Randomly drop features
+            # Calculate number of features to drop
             n_drop = int(len(X_test.columns) * dropout_rate)
             if n_drop == 0:
                 scores.append(baseline)
                 continue
-                
-            dropped_features = np.random.choice(X_test.columns, n_drop, replace=False)
-            X_dropped = X_test.drop(columns=dropped_features)
             
             try:
+                # Create a copy and zero out features instead of dropping columns
+                X_dropped = X_test.copy()
+                dropped_features = np.random.choice(X_test.columns, n_drop, replace=False)
+                
+                # Check if model pipeline can handle NaN (if it has imputer)
+                use_nan = self._pipeline_has_imputer(model)
+                
+                if use_nan:
+                    # Use NaN if pipeline has imputer
+                    X_dropped[dropped_features] = np.nan
+                else:
+                    # Use zero-filling for models without imputation
+                    # For numeric columns, use 0; for categorical, use mode or most frequent value
+                    for feature in dropped_features:
+                        if X_test[feature].dtype in ['object', 'category']:
+                            # For categorical features, use the most frequent value
+                            mode_value = X_test[feature].mode().iloc[0] if len(X_test[feature].mode()) > 0 else X_test[feature].iloc[0]
+                            X_dropped[feature] = mode_value
+                        else:
+                            # For numeric features, use 0
+                            X_dropped[feature] = 0
+                
                 score = self._get_baseline_score(model, X_dropped, y_test, target_type)
                 scores.append(score)
-            except:
+                
+            except Exception as e:
+                self.logger.warning(f"Dropout robustness test failed at rate {dropout_rate}: {e}")
                 scores.append(0.0)
         
         score_retentions = [s / baseline if baseline != 0 else 0 for s in scores]
+        score_std = float(np.std(scores))
+        score_mean = float(np.mean(scores))
         
         return {
             "dropout_rates": self.config.dropout_rates,
             "scores": scores,
             "score_retentions": score_retentions,
-            "avg_score_retention": float(np.mean(score_retentions))
+            "avg_score_retention": float(np.mean(score_retentions)),
+            "baseline_score": baseline,
+            "score_mean": score_mean,
+            "score_std": score_std,
+            "score_std_normalized": float(score_std / (score_mean + 1e-8))
         }
     
     def _test_bootstrap_stability(self, model, X_test: pd.DataFrame, 
                                 y_test: pd.Series, target_type: str) -> Dict[str, Any]:
         """Test stability across bootstrap samples"""
         
+        # Set random seed for reproducibility
+        np.random.seed(getattr(self.config, 'random_state', 42))
+        
         scores = []
         n_samples = min(len(X_test), 1000)  # Limit for performance
+        baseline = self._get_baseline_score(model, X_test, y_test, target_type)
         
         for _ in range(min(self.config.n_bootstrap_samples, 50)):
             # Bootstrap sample
@@ -444,11 +533,16 @@ class StabilityAnalyzer(BaseAnalyzer):
         if not scores:
             return {"error": "Bootstrap testing failed"}
         
+        score_mean = float(np.mean(scores))
+        score_std = float(np.std(scores))
+        
         return {
             "scores": scores,
-            "score_mean": float(np.mean(scores)),
-            "score_std": float(np.std(scores)),
-            "score_std_normalized": float(np.std(scores) / (np.mean(scores) + 1e-8))
+            "score_mean": score_mean,
+            "score_std": score_std,
+            "score_std_normalized": float(score_std / (score_mean + 1e-8)),
+            "baseline_score": baseline,
+            "stability_score": float(1 - score_std / (score_mean + 1e-8))  # Higher = more stable
         }
     
     def _test_prediction_consistency(self, model, X_test: pd.DataFrame) -> Dict[str, float]:
@@ -479,6 +573,31 @@ class StabilityAnalyzer(BaseAnalyzer):
             "avg_correlation": float(np.mean(correlations)) if correlations else 0.0,
             "consistency_score": float(np.mean(correlations)) if correlations else 0.0
         }
+    
+    def _pipeline_has_imputer(self, model) -> bool:
+        """Check if the model pipeline contains an imputer that can handle NaN values"""
+        
+        try:
+            # Check sklearn Pipeline
+            if hasattr(model, 'named_steps'):
+                for step_name, step in model.named_steps.items():
+                    step_class = step.__class__.__name__
+                    if any(imputer_name in step_class for imputer_name in 
+                          ['Imputer', 'SimpleImputer', 'IterativeImputer', 'KNNImputer']):
+                        return True
+            
+            # Check imblearn Pipeline
+            elif hasattr(model, 'steps'):
+                for step_name, step in model.steps:
+                    step_class = step.__class__.__name__
+                    if any(imputer_name in step_class for imputer_name in 
+                          ['Imputer', 'SimpleImputer', 'IterativeImputer', 'KNNImputer']):
+                        return True
+            
+            return False
+            
+        except Exception:
+            return False
 
 class InterpretabilityAnalyzer(BaseAnalyzer):
     """Analyzes model interpretability using SHAP and permutation importance"""
@@ -496,8 +615,10 @@ class InterpretabilityAnalyzer(BaseAnalyzer):
         
         # SHAP analysis
         shap_analysis = None 
-        if self.config.enable_shap:
+        if self.config.enable_shap and HAS_SHAP:
             shap_analysis = self._calculate_shap_values(model, X_test)
+        elif self.config.enable_shap and not HAS_SHAP:
+            self.logger.warning("SHAP analysis requested but SHAP not installed")
         
         # Feature interaction analysis
         interactions = self._analyze_feature_interactions(model, X_test, target_type)
@@ -550,41 +671,44 @@ class InterpretabilityAnalyzer(BaseAnalyzer):
             return {"error": str(e)}
     
     def _calculate_shap_values(self, model, X_test: pd.DataFrame) -> Optional[Dict[str, Any]]:
-        """Calculate SHAP values for interpretability"""
+        """Calculate SHAP values for interpretability - model-agnostic approach"""
         
         try:
             # Limit samples for performance
             sample_size = min(len(X_test), self.config.max_shap_samples)
             X_sample = X_test.sample(n=sample_size, random_state=42)
             
-            # Try different explainers based on model type
+            # Initialize variables
             explainer = None
             shap_values = None
+            explainer_type = None
             
-            # For sklearn pipeline models, need to extract the actual model
-            actual_model = model
-            if hasattr(model, 'named_steps'):
-                # This is a pipeline, get the actual model
-                actual_model = model.named_steps.get('model', model)
+            # Enhanced model extraction for different frameworks
+            actual_model = self._extract_model_from_pipeline(model)
+            model_type = self._identify_model_type(actual_model)
             
-            # Try TreeExplainer first (for tree-based models)
-            try:
-                explainer = shap.TreeExplainer(actual_model)
-                shap_values = explainer.shap_values(X_sample)
-                self.logger.info(f"✅ SHAP TreeExplainer successful")
-            except Exception as e:
-                self.logger.warning(f"TreeExplainer failed: {e}")
-                # Fallback to KernelExplainer
+            # Try explainers in order of efficiency: Tree → Linear → Kernel
+            explainer_attempts = [
+                ("TreeExplainer", self._try_tree_explainer),
+                ("LinearExplainer", self._try_linear_explainer),
+                ("KernelExplainer", self._try_kernel_explainer),
+                ("PermutationExplainer", self._try_permutation_explainer)
+            ]
+            
+            for explainer_name, explainer_func in explainer_attempts:
                 try:
-                    explainer = shap.KernelExplainer(
-                        model.predict, 
-                        X_sample.sample(n=min(100, len(X_sample)), random_state=42)
-                    )
-                    shap_values = explainer.shap_values(X_sample.head(min(100, len(X_sample))))
-                    self.logger.info(f"✅ SHAP KernelExplainer successful")
-                except Exception as e2:
-                    self.logger.warning(f"KernelExplainer also failed: {e2}")
-                    return None
+                    explainer, shap_values = explainer_func(actual_model, model, X_sample)
+                    if explainer is not None and shap_values is not None:
+                        explainer_type = explainer_name
+                        self.logger.info(f"✅ SHAP {explainer_name} successful")
+                        break
+                except Exception as e:
+                    self.logger.warning(f"{explainer_name} failed: {e}")
+                    continue
+            
+            if explainer is None or shap_values is None:
+                self.logger.warning("All SHAP explainers failed")
+                return None
             
             if shap_values is None:
                 return None
@@ -609,31 +733,39 @@ class InterpretabilityAnalyzer(BaseAnalyzer):
             
             # Calculate SHAP statistics with error handling
             try:
-                mean_abs_shap = np.mean(np.abs(shap_values), axis=0) 
+                # Calculate both magnitude and direction
+                mean_abs_shap = np.mean(np.abs(shap_values), axis=0)  # Magnitude
+                mean_shap = np.mean(shap_values, axis=0)  # Direction (can be positive or negative)
                 
-                # Ensure mean_abs_shap is 1-dimensional
+                # Ensure both are 1-dimensional
                 if len(mean_abs_shap.shape) > 1:
                     mean_abs_shap = mean_abs_shap.flatten()
+                if len(mean_shap.shape) > 1:
+                    mean_shap = mean_shap.flatten()
                 
                 # Convert to python scalars explicitly
                 mean_abs_shap = [float(x) for x in mean_abs_shap]
+                mean_shap = [float(x) for x in mean_shap]
                 
             except Exception as e:
                 self.logger.warning(f"Error calculating SHAP statistics: {e}")
                 return None
             
             # Ensure we have the right number of features
-            if len(mean_abs_shap) != len(X_sample.columns):
-                self.logger.warning(f"SHAP values length ({len(mean_abs_shap)}) doesn't match features ({len(X_sample.columns)})")
+            if len(mean_abs_shap) != len(X_sample.columns) or len(mean_shap) != len(X_sample.columns):
+                self.logger.warning(f"SHAP values length doesn't match features")
                 # Try to take only the first n features if we have too many values
                 if len(mean_abs_shap) > len(X_sample.columns):
                     mean_abs_shap = mean_abs_shap[:len(X_sample.columns)]
+                    mean_shap = mean_shap[:len(X_sample.columns)]
                 else:
                     return None
             
             shap_df = pd.DataFrame({
                 'feature': X_sample.columns,
-                'mean_abs_shap': mean_abs_shap
+                'mean_abs_shap': mean_abs_shap,
+                'mean_shap': mean_shap,  # Include direction
+                'direction': ['positive' if x > 0 else 'negative' for x in mean_shap]
             }).sort_values('mean_abs_shap', ascending=False)
             
             # Handle expected_value which might be an array or scalar
@@ -664,12 +796,136 @@ class InterpretabilityAnalyzer(BaseAnalyzer):
                 "feature_shap_values": shap_df.to_dict('records'),
                 "top_shap_features": shap_df.head(10)['feature'].tolist(),
                 "shap_values_raw": shap_values_list,
-                "base_value": base_value
+                "base_value": base_value,
+                "explainer_type": explainer_type,
+                "model_type": model_type
             }
             
         except Exception as e:
             self.logger.warning(f"SHAP analysis failed: {e}")
             return None
+    
+    def _extract_model_from_pipeline(self, model):
+        """Extract the actual model from various pipeline structures"""
+        
+        # sklearn Pipeline
+        if hasattr(model, 'named_steps'):
+            # Try common step names
+            for step_name in ['model', 'classifier', 'regressor', 'estimator']:
+                if step_name in model.named_steps:
+                    return model.named_steps[step_name]
+            # If no common names, return the last step
+            if len(model.named_steps) > 0:
+                return list(model.named_steps.values())[-1]
+        
+        # imblearn Pipeline
+        elif hasattr(model, 'steps'):
+            return model.steps[-1][1]  # Last step in pipeline
+        
+        # Already extracted model or standalone model
+        return model
+    
+    def _identify_model_type(self, model) -> str:
+        """Identify the model type for optimal SHAP explainer selection"""
+        
+        model_class = model.__class__.__name__
+        model_module = model.__class__.__module__
+        
+        # Tree-based models
+        tree_models = [
+            'RandomForest', 'ExtraTrees', 'GradientBoosting', 'XGBoost', 'LightGBM',
+            'CatBoost', 'DecisionTree', 'ExtraTree', 'HistGradientBoosting'
+        ]
+        
+        if any(tree_name in model_class for tree_name in tree_models):
+            return 'tree'
+        
+        # Linear models
+        linear_models = [
+            'Linear', 'Ridge', 'Lasso', 'ElasticNet', 'Logistic', 'SGD',
+            'Perceptron', 'PassiveAggressive'
+        ]
+        
+        if any(linear_name in model_class for linear_name in linear_models):
+            return 'linear'
+        
+        # SVM models
+        if 'SV' in model_class or 'svm' in model_module:
+            return 'svm'
+        
+        # Neural networks
+        if any(nn_name in model_class.lower() for nn_name in ['neural', 'mlp', 'dnn']):
+            return 'neural'
+        
+        # XGBoost/LightGBM specific
+        if 'xgboost' in model_module or 'lightgbm' in model_module:
+            return 'tree'
+        
+        return 'unknown'
+    
+    def _try_tree_explainer(self, actual_model, full_model, X_sample):
+        """Try TreeExplainer for tree-based models"""
+        explainer = shap.TreeExplainer(actual_model)
+        shap_values = explainer.shap_values(X_sample)
+        return explainer, shap_values
+    
+    def _try_linear_explainer(self, actual_model, full_model, X_sample):
+        """Try LinearExplainer for linear models"""
+        explainer = shap.LinearExplainer(actual_model, X_sample)
+        shap_values = explainer.shap_values(X_sample)
+        return explainer, shap_values
+    
+    def _try_kernel_explainer(self, actual_model, full_model, X_sample):
+        """Try KernelExplainer as fallback for any model"""
+        # Use a smaller background dataset for KernelExplainer
+        background_size = min(100, len(X_sample))
+        background = X_sample.sample(n=background_size, random_state=42)
+        
+        explainer = shap.KernelExplainer(full_model.predict, background)
+        
+        # Limit samples for KernelExplainer (it's slow)
+        sample_size = min(100, len(X_sample))
+        shap_values = explainer.shap_values(X_sample.head(sample_size))
+        return explainer, shap_values
+    
+    def _try_permutation_explainer(self, actual_model, full_model, X_sample):
+        """Try PermutationExplainer as final fallback"""
+        explainer = shap.PermutationExplainer(full_model.predict, X_sample)
+        shap_values = explainer.shap_values(X_sample)
+        return explainer, shap_values
+    
+    def _adapt_shap_config_to_model(self, model_type: str, X_sample_size: int) -> Dict[str, Any]:
+        """Adapt SHAP configuration based on model type and data size"""
+        
+        config = {
+            "max_samples": self.config.max_shap_samples,
+            "background_samples": 100,
+            "use_approximate": False
+        }
+        
+        # Tree models - can handle more samples efficiently
+        if model_type == 'tree':
+            config["max_samples"] = min(2000, X_sample_size)
+            config["background_samples"] = min(500, X_sample_size // 2)
+        
+        # Linear models - very efficient
+        elif model_type == 'linear':
+            config["max_samples"] = min(5000, X_sample_size)
+            config["background_samples"] = min(1000, X_sample_size // 2)
+        
+        # Kernel methods and neural networks - more conservative
+        elif model_type in ['svm', 'neural', 'unknown']:
+            config["max_samples"] = min(500, X_sample_size)
+            config["background_samples"] = min(100, X_sample_size // 4)
+            config["use_approximate"] = True
+        
+        # Large datasets - always be conservative
+        if X_sample_size > 10000:
+            config["max_samples"] = min(config["max_samples"], 1000)
+            config["background_samples"] = min(config["background_samples"], 200)
+            config["use_approximate"] = True
+        
+        return config
     
     def _analyze_feature_interactions(self, model, X_test: pd.DataFrame, 
                                     target_type: str) -> Dict[str, Any]:
@@ -1306,49 +1562,162 @@ class ModelAnalyzer:
             return []
     
     def _plot_feature_importance(self, model_name: str, interp_data: Dict) -> List[str]:
-        """Generate feature importance plots"""
+        """Generate enhanced feature importance plots with direction, error bars, and log-odds"""
         
         try:
-            fig = make_subplots(
-                rows=1, cols=2,
-                subplot_titles=['Permutation Importance', 'SHAP Values'],
-                specs=[[{'secondary_y': False}, {'secondary_y': False}]]
-            )
+            # Determine if this is binary classification for log-odds axis
+            is_binary_classification = False
+            if ('shap_analysis' in interp_data and 
+                interp_data['shap_analysis'] and 
+                'model_type' in interp_data['shap_analysis']):
+                # We'll add logic to detect binary classification
+                is_binary_classification = True  # For now, assume we want log-odds for classification
             
-            # Permutation importance
+            # Create subplots with potentially different y-axis types
+            if self.config.add_log_odds_axis and is_binary_classification:
+                fig = make_subplots(
+                    rows=1, cols=2,
+                    subplot_titles=['Permutation Importance', 'SHAP Values (with Log-Odds)'],
+                    specs=[[{'secondary_y': False}, {'secondary_y': True}]]
+                )
+            else:
+                fig = make_subplots(
+                    rows=1, cols=2,
+                    subplot_titles=['Permutation Importance', 'SHAP Values'],
+                    specs=[[{'secondary_y': False}, {'secondary_y': False}]]
+                )
+            
+            # 1. Enhanced Permutation Importance with error bars
             if 'permutation_importance' in interp_data and 'feature_importances' in interp_data['permutation_importance']:
-                perm_data = interp_data['permutation_importance']['feature_importances'][:15]  # Top 15
+                perm_data = interp_data['permutation_importance']['feature_importances'][:self.config.top_k_features]
                 
                 features = [item['feature'] for item in perm_data]
                 importances = [item['importance_mean'] for item in perm_data]
-                stds = [item['importance_std'] for item in perm_data]
+                
+                # Add error bars if enabled and available
+                if self.config.permutation_error_bars and 'importance_std' in perm_data[0]:
+                    stds = [item['importance_std'] for item in perm_data]
+                    error_x = dict(type='data', array=stds, visible=True, thickness=2)
+                else:
+                    error_x = None
                 
                 fig.add_trace(
-                    go.Bar(x=importances, y=features, orientation='h',
-                          error_x=dict(type='data', array=stds),
-                          name='Permutation Importance'),
+                    go.Bar(
+                        x=importances, 
+                        y=features, 
+                        orientation='h',
+                        error_x=error_x,
+                        name='Permutation Importance',
+                        marker=dict(
+                            color='steelblue',
+                            line=dict(color='darkblue', width=1)
+                        ),
+                        text=[f'{imp:.3f}' for imp in importances],
+                        textposition='outside',
+                        textfont=dict(size=10)
+                    ),
                     row=1, col=1
                 )
             
-            # SHAP values
+            # 2. Enhanced SHAP values with direction and log-odds
             if 'shap_analysis' in interp_data and interp_data['shap_analysis'] and 'feature_shap_values' in interp_data['shap_analysis']:
-                shap_data = interp_data['shap_analysis']['feature_shap_values'][:15]  # Top 15
+                shap_data = interp_data['shap_analysis']['feature_shap_values'][:self.config.top_k_features]
                 
                 features = [item['feature'] for item in shap_data]
-                shap_values = [item['mean_abs_shap'] for item in shap_data]
                 
+                if self.config.show_direction and 'mean_shap' in shap_data[0]:
+                    # Use directional SHAP values (positive/negative)
+                    shap_values = [item['mean_shap'] for item in shap_data]
+                    colors = ['green' if val > 0 else 'red' for val in shap_values]
+                    
+                    # Create custom hover text with direction
+                    hover_text = [
+                        f"Feature: {feat}<br>"
+                        f"SHAP: {val:.3f}<br>"
+                        f"Impact: {'Positive' if val > 0 else 'Negative'}<br>"
+                        f"Magnitude: {abs(val):.3f}"
+                        for feat, val in zip(features, shap_values)
+                    ]
+                    
+                else:
+                    # Use magnitude only (backward compatibility)
+                    shap_values = [item['mean_abs_shap'] for item in shap_data]
+                    colors = 'orange'
+                    hover_text = [f"Feature: {feat}<br>SHAP: {val:.3f}" for feat, val in zip(features, shap_values)]
+                
+                # Main SHAP bar plot
                 fig.add_trace(
-                    go.Bar(x=shap_values, y=features, orientation='h',
-                          name='SHAP Values'),
+                    go.Bar(
+                        x=shap_values, 
+                        y=features, 
+                        orientation='h',
+                        name='SHAP Values',
+                        marker=dict(
+                            color=colors,
+                            line=dict(color='black', width=0.5)
+                        ),
+                        text=[f'{val:.3f}' for val in shap_values],
+                        textposition='outside',
+                        textfont=dict(size=10),
+                        hovertext=hover_text,
+                        hoverinfo='text'
+                    ),
                     row=1, col=2
                 )
+                
+                # Add log-odds axis if enabled and this is binary classification
+                if self.config.add_log_odds_axis and is_binary_classification:
+                    # Convert SHAP values to approximate log-odds scale
+                    # Note: This is an approximation since exact conversion requires model specifics
+                    log_odds_values = [val * 1.6 for val in shap_values]  # Rough conversion factor
+                    
+                    # Add secondary y-axis with log-odds scale
+                    fig.add_trace(
+                        go.Scatter(
+                            x=log_odds_values,
+                            y=features,
+                            mode='markers',
+                            marker=dict(
+                                symbol='diamond',
+                                size=8,
+                                color='purple',
+                                line=dict(color='rebeccapurple', width=1)
+                            ),
+                            name='Log-Odds Scale',
+                            yaxis='y2',
+                            showlegend=True,
+                            hovertemplate='<b>%{y}</b><br>Log-Odds: %{x:.3f}<extra></extra>'
+                        ),
+                        row=1, col=2, secondary_y=True
+                    )
             
-            fig.update_layout(
-                title=f'Feature Importance - {model_name}',
-                showlegend=False,
-                height=600,
-                template='plotly_white'
-            )
+            # Update layout with enhanced styling
+            layout_updates = {
+                'title': f'Enhanced Feature Importance Analysis - {model_name}',
+                'showlegend': True,
+                'height': 600,
+                'template': 'plotly_white',
+                'font': dict(size=12)
+            }
+            
+            # Add log-odds axis labels if enabled
+            if self.config.add_log_odds_axis and is_binary_classification:
+                layout_updates['yaxis2'] = dict(
+                    title='Log-Odds Impact',
+                    overlaying='y',
+                    side='right',
+                    showgrid=False
+                )
+            
+            fig.update_layout(**layout_updates)
+            
+            # Update x-axis labels
+            fig.update_xaxes(title_text="Importance Score", row=1, col=1)
+            fig.update_xaxes(title_text="SHAP Value" + (" / Log-Odds" if self.config.add_log_odds_axis and is_binary_classification else ""), row=1, col=2)
+            
+            # Add reference line at x=0 for SHAP plot if showing direction
+            if self.config.show_direction:
+                fig.add_vline(x=0, line_dash="dash", line_color="gray", row=1, col=2)
             
             # Save using the enhanced save method
             saved_files = self._save_plot(fig, model_name, "feature_importance")
@@ -1359,70 +1728,248 @@ class ModelAnalyzer:
             return []
     
     def _plot_stability_analysis(self, model_name: str, stability_data: Dict) -> List[str]:
-        """Generate stability analysis plots"""
+        """Generate enhanced stability analysis plots with trends and variance metrics"""
         
         try:
             fig = make_subplots(
                 rows=2, cols=2,
-                subplot_titles=['Noise Robustness', 'Dropout Robustness', 
-                               'Bootstrap Stability', 'Overall Stability'],
+                subplot_titles=['Score Retention Trends', 'Bootstrap Stability Distribution', 
+                               'Stability Components', 'Score Variance Analysis'],
                 specs=[[{'secondary_y': False}, {'secondary_y': False}],
-                       [{'secondary_y': False}, {'secondary_y': False}]]
+                       [{'secondary_y': False}, {'secondary_y': True}]]
             )
             
-            # Noise robustness
+            # Enhanced Score Retention Trends (Subplot 1)
+            baseline_score = stability_data.get('baseline_score', 1.0)
+            
+            # Noise robustness trend
             if 'noise_stability' in stability_data:
                 noise_data = stability_data['noise_stability']
+                noise_levels = noise_data.get('noise_levels', [])
+                score_retentions = noise_data.get('score_retentions', [])
+                scores = noise_data.get('scores', [])
+                
+                # Main line
                 fig.add_trace(
-                    go.Scatter(x=noise_data['noise_levels'], y=noise_data['score_retentions'],
-                              mode='lines+markers', name='Noise Robustness'),
+                    go.Scatter(
+                        x=noise_levels, 
+                        y=score_retentions,
+                        mode='lines+markers', 
+                        name='Noise Robustness',
+                        line=dict(color='red', width=3),
+                        marker=dict(size=8),
+                        hovertemplate='Noise Level: %{x}<br>Score Retention: %{y:.3f}<extra></extra>'
+                    ),
                     row=1, col=1
                 )
+                
+                # Add error bars if we have std data
+                if 'score_std' in noise_data and noise_data['score_std'] > 0:
+                    score_mean = noise_data.get('score_mean', baseline_score)
+                    score_std = noise_data['score_std']
+                    fig.add_trace(
+                        go.Scatter(
+                            x=noise_levels + noise_levels[::-1],
+                            y=[(score_mean + score_std)/baseline_score] * len(noise_levels) + 
+                              [(score_mean - score_std)/baseline_score] * len(noise_levels),
+                            fill='toself',
+                            fillcolor='rgba(255,0,0,0.1)',
+                            line=dict(color='rgba(255,255,255,0)'),
+                            showlegend=False,
+                            name='Noise Variance'
+                        ),
+                        row=1, col=1
+                    )
             
-            # Dropout robustness
+            # Dropout robustness trend
             if 'dropout_stability' in stability_data:
                 dropout_data = stability_data['dropout_stability']
+                dropout_rates = dropout_data.get('dropout_rates', [])
+                score_retentions = dropout_data.get('score_retentions', [])
+                
                 fig.add_trace(
-                    go.Scatter(x=dropout_data['dropout_rates'], y=dropout_data['score_retentions'],
-                              mode='lines+markers', name='Dropout Robustness'),
+                    go.Scatter(
+                        x=dropout_rates, 
+                        y=score_retentions,
+                        mode='lines+markers', 
+                        name='Dropout Robustness',
+                        line=dict(color='blue', width=3),
+                        marker=dict(size=8),
+                        hovertemplate='Dropout Rate: %{x}<br>Score Retention: %{y:.3f}<extra></extra>'
+                    ),
+                    row=1, col=1
+                )
+                
+                # Add error bars for dropout if available
+                if 'score_std' in dropout_data and dropout_data['score_std'] > 0:
+                    score_mean = dropout_data.get('score_mean', baseline_score)
+                    score_std = dropout_data['score_std']
+                    fig.add_trace(
+                        go.Scatter(
+                            x=dropout_rates + dropout_rates[::-1],
+                            y=[(score_mean + score_std)/baseline_score] * len(dropout_rates) + 
+                              [(score_mean - score_std)/baseline_score] * len(dropout_rates),
+                            fill='toself',
+                            fillcolor='rgba(0,0,255,0.1)',
+                            line=dict(color='rgba(255,255,255,0)'),
+                            showlegend=False,
+                            name='Dropout Variance'
+                        ),
+                        row=1, col=1
+                    )
+            
+            # Bootstrap stability distribution (Subplot 2)
+            if 'bootstrap_stability' in stability_data and 'scores' in stability_data['bootstrap_stability']:
+                bootstrap_scores = stability_data['bootstrap_stability']['scores']
+                bootstrap_mean = stability_data['bootstrap_stability'].get('score_mean', np.mean(bootstrap_scores))
+                bootstrap_std = stability_data['bootstrap_stability'].get('score_std', np.std(bootstrap_scores))
+                
+                # Histogram
+                fig.add_trace(
+                    go.Histogram(
+                        x=bootstrap_scores, 
+                        nbinsx=20, 
+                        name='Bootstrap Distribution',
+                        opacity=0.7,
+                        marker_color='green',
+                        hovertemplate='Score Range: %{x}<br>Count: %{y}<extra></extra>'
+                    ),
+                    row=1, col=2
+                )
+                
+                # Add mean line
+                fig.add_vline(
+                    x=bootstrap_mean, 
+                    line_dash="dash", 
+                    line_color="red",
+                    row=1, col=2,
+                    annotation_text=f"Mean: {bootstrap_mean:.3f}"
+                )
+                
+                # Add std bands
+                fig.add_vrect(
+                    x0=bootstrap_mean - bootstrap_std,
+                    x1=bootstrap_mean + bootstrap_std,
+                    fillcolor="rgba(255,0,0,0.1)",
+                    layer="below",
+                    line_width=0,
                     row=1, col=2
                 )
             
-            # Bootstrap stability
-            if 'bootstrap_stability' in stability_data and 'scores' in stability_data['bootstrap_stability']:
-                bootstrap_scores = stability_data['bootstrap_stability']['scores']
+            # Normalized stability components (Subplot 3)
+            if 'stability_components' in stability_data:
+                components = stability_data['stability_components']
+                component_names = ['Noise\nRobustness', 'Dropout\nRobustness', 
+                                 'Bootstrap\nStability', 'Prediction\nConsistency']
+                component_values = [
+                    components.get('normalized_noise', 0),
+                    components.get('normalized_dropout', 0),
+                    components.get('normalized_bootstrap', 0),
+                    components.get('normalized_consistency', 0)
+                ]
+                
+                # Color code based on performance
+                colors = ['red' if v < 0.5 else 'orange' if v < 0.7 else 'green' for v in component_values]
+                
                 fig.add_trace(
-                    go.Histogram(x=bootstrap_scores, nbinsx=20, name='Bootstrap Scores'),
+                    go.Bar(
+                        x=component_names, 
+                        y=component_values,
+                        name='Stability Components',
+                        marker_color=colors,
+                        hovertemplate='Component: %{x}<br>Score: %{y:.3f}<extra></extra>'
+                    ),
                     row=2, col=1
                 )
+                
+                # Add threshold lines
+                fig.add_hline(y=0.7, line_dash="dash", line_color="orange", 
+                             row=2, col=1, annotation_text="Good Threshold")
+                fig.add_hline(y=0.8, line_dash="dash", line_color="green", 
+                             row=2, col=1, annotation_text="Excellent Threshold")
             
-            # Overall stability metrics
-            stability_metrics = {
-                'Noise Robustness': stability_data.get('noise_stability', {}).get('avg_score_retention', 0),
-                'Dropout Robustness': stability_data.get('dropout_stability', {}).get('avg_score_retention', 0),
-                'Bootstrap Stability': 1 - stability_data.get('bootstrap_stability', {}).get('score_std_normalized', 1),
-                'Prediction Consistency': stability_data.get('prediction_consistency', {}).get('consistency_score', 0)
-            }
+            # Score variance analysis (Subplot 4 with secondary y-axis)
+            variance_data = []
+            variance_labels = []
+            std_data = []
             
+            if 'noise_stability' in stability_data:
+                noise_std = stability_data['noise_stability'].get('score_std_normalized', 0)
+                variance_data.append(stability_data['noise_stability'].get('avg_score_retention', 0))
+                std_data.append(noise_std)
+                variance_labels.append('Noise')
+            
+            if 'dropout_stability' in stability_data:
+                dropout_std = stability_data['dropout_stability'].get('score_std_normalized', 0)
+                variance_data.append(stability_data['dropout_stability'].get('avg_score_retention', 0))
+                std_data.append(dropout_std)
+                variance_labels.append('Dropout')
+            
+            if 'bootstrap_stability' in stability_data:
+                bootstrap_std = stability_data['bootstrap_stability'].get('score_std_normalized', 0)
+                bootstrap_stability_score = stability_data['bootstrap_stability'].get('stability_score', 0)
+                variance_data.append(bootstrap_stability_score)
+                std_data.append(bootstrap_std)
+                variance_labels.append('Bootstrap')
+            
+            # Mean performance (primary y-axis)
             fig.add_trace(
-                go.Bar(x=list(stability_metrics.keys()), y=list(stability_metrics.values()),
-                      name='Stability Metrics'),
+                go.Bar(
+                    x=variance_labels,
+                    y=variance_data,
+                    name='Mean Performance',
+                    marker_color='lightblue',
+                    yaxis='y',
+                    hovertemplate='Test: %{x}<br>Mean Performance: %{y:.3f}<extra></extra>'
+                ),
                 row=2, col=2
             )
             
-            fig.update_layout(
-                title=f'Stability Analysis - {model_name}',
-                showlegend=False,
-                height=800,
-                template='plotly_white'
+            # Variance (secondary y-axis)
+            fig.add_trace(
+                go.Scatter(
+                    x=variance_labels,
+                    y=std_data,
+                    mode='markers+lines',
+                    name='Normalized Std Dev',
+                    marker=dict(color='red', size=10),
+                    line=dict(color='red'),
+                    yaxis='y2',
+                    hovertemplate='Test: %{x}<br>Std Dev: %{y:.3f}<extra></extra>'
+                ),
+                row=2, col=2
             )
+            
+            # Update layout
+            fig.update_layout(
+                title=f'Enhanced Stability Analysis - {model_name}<br>' +
+                      f'<sub>Overall Stability Score: {stability_data.get("overall_stability", 0):.3f}</sub>',
+                showlegend=True,
+                height=900,
+                template='plotly_white',
+                legend=dict(x=1.05, y=1)
+            )
+            
+            # Update axes
+            fig.update_xaxes(title_text="Noise Level", row=1, col=1)
+            fig.update_yaxes(title_text="Score Retention", row=1, col=1)
+            
+            fig.update_xaxes(title_text="Bootstrap Score", row=1, col=2)
+            fig.update_yaxes(title_text="Frequency", row=1, col=2)
+            
+            fig.update_xaxes(title_text="Stability Component", row=2, col=1)
+            fig.update_yaxes(title_text="Normalized Score", row=2, col=1, range=[0, 1])
+            
+            fig.update_xaxes(title_text="Test Type", row=2, col=2)
+            fig.update_yaxes(title_text="Mean Performance", row=2, col=2)
+            fig.update_yaxes(title_text="Normalized Std Dev", row=2, col=2, secondary_y=True)
             
             # Save using the enhanced save method
             saved_files = self._save_plot(fig, model_name, "stability")
             return saved_files
             
         except Exception as e:
-            self.logger.error(f"Stability plot failed: {e}")
+            self.logger.error(f"Enhanced stability plot failed: {e}")
             return []
     
     def run_analysis(self, X_test: pd.DataFrame, y_test: pd.Series) -> Dict[str, ModelAnalysisResult]:
@@ -1529,18 +2076,139 @@ def create_default_config() -> AnalysisConfig:
         verbose=True
     )
 
+def create_analysis_config_from_yaml(yaml_config_dict: Dict[str, Any], 
+                                   output_dir: str = "analysis_output",
+                                   training_report_path: str = "training_report.json",
+                                   models_dir: str = "models") -> AnalysisConfig:
+    """Create AnalysisConfig from YAML configuration dictionary for pipeline use"""
+    try:
+        
+        if 'custom_mode' in yaml_config_dict:
+            eval_config = yaml_config_dict['custom_mode'].get('model_evaluation', {})
+        elif 'fast_mode' in yaml_config_dict:
+            eval_config = yaml_config_dict['fast_mode'].get('model_evaluation', {})
+        else:
+            # Fallback to direct model_evaluation key
+            eval_config = yaml_config_dict.get('model_evaluation', {})
+        
+        # Get stability testing config
+        stability_config = eval_config.get('stability_testing', {})
+        feature_config = eval_config.get('feature_importance', {})
+      
+        return AnalysisConfig(
+            # Basic settings - use provided paths from pipeline
+            models_dir=Path(models_dir),
+            training_report_path=Path(training_report_path),
+            output_dir=Path(output_dir),
+            
+            # Analysis components from YAML
+            enable_shap=eval_config.get('enable_shap', True),
+            enable_learning_curves=eval_config.get('enable_learning_curves', True),
+            enable_residual_analysis=eval_config.get('enable_residual_analysis', True),
+            enable_stability_analysis=eval_config.get('enable_stability_analysis', True),
+            enable_interpretability=eval_config.get('enable_interpretability', True),
+            enable_uncertainty_analysis=eval_config.get('enable_uncertainty_analysis', True),
+            
+            # Visualization
+            save_plots=eval_config.get('save_plots', True),
+            plot_format=eval_config.get('plot_format', 'html'),
+            plot_dpi=eval_config.get('plot_dpi', 300),
+            figure_size=tuple(eval_config.get('figure_size', [12, 8])),
+            
+            # Performance
+            n_permutations=eval_config.get('n_permutations', 50),
+            n_bootstrap_samples=eval_config.get('n_bootstrap_samples', 100),
+            max_shap_samples=eval_config.get('max_shap_samples', 1000),
+            n_models_to_evaluate=eval_config.get('n_models_to_evaluate', 3),
+            
+            # Feature importance enhancements
+            top_k_features=feature_config.get('top_k_features', 15),
+            show_direction=feature_config.get('show_direction', True),
+            add_log_odds_axis=feature_config.get('add_log_odds_axis', True),
+            permutation_error_bars=feature_config.get('permutation_error_bars', True),
+            
+            # Stability
+            noise_levels=eval_config.get('noise_levels', [0.01, 0.05, 0.1, 0.2]),
+            dropout_rates=eval_config.get('dropout_rates', [0.05, 0.1, 0.2, 0.3]),
+            
+            # Reproducibility
+            random_state=eval_config.get('random_state', 42),
+            
+            # Logging
+            verbose=eval_config.get('verbose', True)
+        )
+        
+    except Exception as e:
+        print(f"⚠️ Failed to create config from YAML dict: {e}")
+        print("Using default configuration...")
+        return create_default_config()
+
+def load_config_from_yaml(config_path: str = "config/unified_config_v3.yaml") -> AnalysisConfig:
+    """Load analysis configuration from unified config YAML file"""
+    try:
+        import yaml
+        with open(config_path, 'r') as f:
+            config = yaml.safe_load(f)
+        
+        eval_config = config.get('model_evaluation', {})
+        feature_config = eval_config.get('feature_importance', {})
+        
+        return AnalysisConfig(
+            # Basic settings
+            models_dir=Path(eval_config.get('models_dir', 'models')),
+            training_report_path=Path(eval_config.get('training_report_path', 'training_report.json')),
+            output_dir=Path(eval_config.get('output_dir', 'analysis_output')),
+            
+            # Analysis components
+            enable_shap=eval_config.get('enable_shap', True),
+            enable_learning_curves=eval_config.get('enable_learning_curves', True),
+            enable_residual_analysis=eval_config.get('enable_residual_analysis', True),
+            enable_stability_analysis=eval_config.get('enable_stability_analysis', True),
+            enable_interpretability=eval_config.get('enable_interpretability', True),
+            enable_uncertainty_analysis=eval_config.get('enable_uncertainty_analysis', True),
+            
+            # Visualization
+            save_plots=eval_config.get('save_plots', True),
+            plot_format=eval_config.get('plot_format', 'html'),
+            plot_dpi=eval_config.get('plot_dpi', 300),
+            figure_size=tuple(eval_config.get('figure_size', [12, 8])),
+            
+            # Performance
+            n_permutations=eval_config.get('n_permutations', 50),
+            n_bootstrap_samples=eval_config.get('n_bootstrap_samples', 100),
+            max_shap_samples=eval_config.get('max_shap_samples', 1000),
+            n_models_to_evaluate=eval_config.get('n_models_to_evaluate', 3),
+            
+            # Feature importance enhancements
+            top_k_features=feature_config.get('top_k_features', 15),
+            show_direction=feature_config.get('show_direction', True),
+            add_log_odds_axis=feature_config.get('add_log_odds_axis', True),
+            permutation_error_bars=feature_config.get('permutation_error_bars', True),
+            
+            # Stability
+            noise_levels=eval_config.get('noise_levels', [0.01, 0.05, 0.1, 0.2]),
+            dropout_rates=eval_config.get('dropout_rates', [0.05, 0.1, 0.2, 0.3]),
+            
+            # Reproducibility
+            random_state=eval_config.get('random_state', 42),
+            
+            # Logging
+            verbose=eval_config.get('verbose', True)
+        )
+        
+    except Exception as e:
+        print(f"⚠️ Failed to load config from {config_path}: {e}")
+        print("Using default configuration...")
+        return create_default_config()
+
 def main():
-    """Main CLI interface"""
+    """Simplified CLI interface - Pure YAML configuration"""
     import argparse
     
     parser = argparse.ArgumentParser(description="Comprehensive Model Analysis")
     parser.add_argument("test_data", help="Test dataset CSV file")
     parser.add_argument("target", help="Target column name")
-    parser.add_argument("--models-dir", default="models", help="Models directory")
-    parser.add_argument("--report-path", default="training_report.json", help="Training report path")
-    parser.add_argument("--output-dir", default="analysis_output", help="Output directory")
-    parser.add_argument("--disable-shap", action="store_true", help="Disable SHAP analysis")
-    parser.add_argument("--disable-plots", action="store_true", help="Disable plot generation")
+    parser.add_argument("--config", default="config/unified_config_v3.yaml", help="Configuration YAML file")
     
     args = parser.parse_args()
     
@@ -1549,15 +2217,14 @@ def main():
     X_test = df_test.drop(columns=[args.target])
     y_test = df_test[args.target]
     
-    # Create configuration
-    config = AnalysisConfig(
-        models_dir=Path(args.models_dir),
-        training_report_path=Path(args.report_path),
-        output_dir=Path(args.output_dir),
-        enable_shap=not args.disable_shap,
-        save_plots=not args.disable_plots,
-        verbose=True
-    )
+    # Load configuration purely from YAML
+    config = load_config_from_yaml(args.config)
+    
+    print(f"📄 Using configuration: {args.config}")
+    print(f"📁 Models directory: {config.models_dir}")
+    print(f"📊 Output directory: {config.output_dir}")
+    print(f"🔍 SHAP analysis: {'Enabled' if config.enable_shap else 'Disabled'}")
+    print(f"📈 Plot generation: {'Enabled' if config.save_plots else 'Disabled'}")
     
     # Run analysis
     analyzer = ModelAnalyzer(config)
@@ -1566,16 +2233,36 @@ def main():
     print(f"\n🎉 Analysis complete!")
     print(f"📁 Results saved to: {config.output_dir}")
     print(f"🔍 Models analyzed: {list(results.keys())}")
+    print(f"📊 SHAP features analyzed: Top {config.top_k_features} features")
+    print(f"🎯 Feature direction analysis: {'Enabled' if config.show_direction else 'Disabled'}")
+    print(f"📈 Log-odds axis: {'Enabled' if config.add_log_odds_axis else 'Disabled'}")
+    print(f"📉 Error bars: {'Enabled' if config.permutation_error_bars else 'Disabled'}")
 
 if __name__ == "__main__":
     main()
     
-# Usage examples
+# Usage examples:
 
+"""
+# Basic usage with default config (unified_config_v3.yaml)
+python evaluator.py data/test.csv target_column
 
-# Advanced analysis with custom config
-# Basic analysis
-#python model_analyzer.py test_data.csv target_column
+# Using custom configuration file
+python evaluator.py data/test.csv target_column --config config/my_custom_config.yaml
 
-# Advanced analysis with custom config
-#python model_analyzer.py test_data.csv target_column --models-dir ./models --output-dir ./analysis --disable-shap
+# All settings are configured through YAML files:
+model_evaluation:
+  models_dir: "models"                    # Models directory
+  training_report_path: "training_report.json"  # Training report path  
+  output_dir: "analysis_output"           # Output directory
+  feature_importance:
+    top_k_features: 20                    # Show top 20 features
+    show_direction: true                  # Show positive/negative impact
+    add_log_odds_axis: true              # Add log-odds secondary axis
+    permutation_error_bars: true         # Add error bars to permutation importance
+  enable_shap: true                      # Enable/disable SHAP analysis
+  save_plots: true                       # Enable/disable plot generation
+  plot_format: "html"                    # Plot format: "html" or "png"
+  max_shap_samples: 1000                 # Max samples for SHAP analysis
+  n_permutations: 100                    # Number of permutations for importance
+"""

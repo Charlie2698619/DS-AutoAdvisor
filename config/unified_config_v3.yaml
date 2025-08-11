@@ -1,0 +1,558 @@
+# DS-AutoAdvisor Version 3.0 Simplified Configuration
+# Two-Mode System: FAST and CUSTOM
+# Complete YAML control - no hardcoded settings in Python scripts
+
+# =============================================================================
+# 🎯 GLOBAL SETTINGS (shared by both modes)
+# =============================================================================
+global:
+  project_name: "DS-AutoAdvisor Pipeline"           # Project name for tracking
+  version: "3.0"                                    # Pipeline version
+  environment: "development"                        # Options: "development", "staging", "production"
+  data_input_path: "data/telco_churn_data.csv"     # Default input data path
+  target_column: "Churn"                            # Primary target column name
+  target_column_variants: ["Churn", "Churn_binary_0", "Churn_encoded", "Churn_label"]  # Alternative target names
+  csv_delimiter: ","                                # CSV delimiter: ",", ";", "\t", "|"
+  csv_encoding: "utf-8"                            # File encoding: "utf-8", "latin1", "cp1252"
+  random_state: 42                                  # Global random seed for reproducibility
+  output_base_dir: "pipeline_outputs"              # Base directory for all outputs
+  versioning_enabled: true                         # Enable output versioning (true/false)
+
+# =============================================================================
+# 🚀 FAST MODE - Quick pipeline execution with minimal configuration
+# =============================================================================
+fast_mode:
+  # Data Discovery Settings
+  data_discovery:
+    # === PROFILING CONFIGURATION (FAST) ===
+    profiling:
+      output_dir_name: "data_profiles"               # Directory name for profiling outputs
+      generate_html: true                            # Generate interactive HTML reports (true/false)
+      save_raw_profile: false                        # Save raw profiling JSON data (true/false) - FAST: disabled
+      enable_advanced_stats: false                   # Enable advanced statistical analysis (true/false) - FAST: disabled
+      generate_data_lineage: false                   # Generate data lineage tracking (true/false) - FAST: disabled
+      
+    # === QUALITY ASSESSMENT (FAST) ===
+    quality_assessment:
+      enabled: true                                  # Enable data quality assessment (true/false)
+      use_enhanced_system: false                     # Use enhanced quality system (true/false) - FAST: basic
+      quality_gates: false                           # Enable quality gates (true/false) - FAST: disabled
+      automated_recommendations: true               # Generate automated recommendations (true/false)
+      thresholds:
+        completeness_min: 0.7                       # Min completeness threshold (0.5-0.99) - FAST: relaxed
+        consistency_min: 0.6                        # Min consistency threshold (0.5-0.95) - FAST: relaxed
+        validity_min: 0.8                           # Min validity threshold (0.6-0.99) - FAST: relaxed
+        uniqueness_check: false                      # Enable uniqueness checking (true/false) - FAST: disabled
+        
+    # === CONFIGURATION GENERATION (FAST) ===
+    config_generation:
+      cleaning_config_template: true                # Generate cleaning config template (true/false)
+      pipeline_config_update: false                 # Update pipeline config (true/false) - FAST: disabled
+      auto_detect_target: true                      # Auto-detect target column (true/false)
+      suggest_improvements: false                    # Suggest data improvements (true/false) - FAST: disabled
+
+  # Data Cleaning Settings (FAST MODE)
+  data_cleaning:
+    # === EXECUTION CONFIGURATION (FAST) ===
+    execution:
+      validate_before_cleaning: false               # Validate data before cleaning (true/false) - FAST: disabled
+      backup_original_data: false                   # Create backup of original data (true/false) - FAST: disabled
+      generate_cleaning_report: false              # Generate detailed cleaning report (true/false) - FAST: disabled
+      save_intermediate_steps: false               # Save intermediate cleaning steps (true/false) - FAST: disabled
+      
+    # === QUALITY GATES (FAST) ===
+    quality_gates:
+      enabled: false                                # Enable quality gates (true/false) - FAST: disabled
+      min_data_retention: 0.3                      # Minimum data retention ratio (0.3-0.9) - FAST: relaxed
+      max_missing_after_cleaning: 0.2              # Max missing values after cleaning (0.05-0.3) - FAST: relaxed
+      require_target_column: true                   # Require target column presence (true/false)
+      
+    # === OUTPUT CONFIGURATION (FAST) ===
+    output:
+      save_cleaned_data: true                       # Save cleaned dataset (true/false)
+      output_filename: "cleaned_data.csv"          # Output filename
+      log_all_transformations: false               # Log all transformation steps (true/false) - FAST: disabled
+      generate_comparison_report: false            # Generate before/after comparison (true/false) - FAST: disabled
+
+  # ML Advisory Settings (FAST MODE)
+  ml_advisory:
+    # === ASSUMPTION TESTING CONFIGURATION (FAST) ===
+    assumption_testing:
+      enabled: true                                    # Enable assumption testing (true/false)
+      normality_alpha: 0.05                          # Significance level for normality tests (0.01-0.1)
+      homo_alpha: 0.05                               # Significance level for variance tests (0.01-0.1)
+      vif_threshold: 10.0                            # VIF threshold for multicollinearity (5.0-50.0)
+      correlation_threshold: 0.95                    # Correlation threshold (0.8-0.99)
+      verbose: false                                 # Verbose assumption testing output (true/false) - FAST: disabled
+      generate_recommendations: false               # Generate model recommendations (true/false) - FAST: disabled
+      normality_max_sample: 1000                    # Max samples for normality testing (1000-10000) - FAST: limited
+      normality_method: "shapiro"                    # Options: "shapiro", "kolmogorov", "anderson", "jarque_bera"
+      homo_method: "breusch_pagan"                   # Options: "breusch_pagan", "goldfeld_quandt", "white"
+      imbalance_threshold: 0.9                       # Threshold for class imbalance (0.6-0.95)
+      min_class_size: 30                             # Minimum class size for analysis (10-100)
+      linearity_alpha: 0.05                         # Significance level for linearity tests (0.01-0.1)
+      independence_alpha: 0.05                       # Significance level for independence tests (0.01-0.1)
+      chunk_size: 1000                               # Chunk size for large datasets (1000-50000) - FAST: smaller chunks
+      enable_sampling: true                          # Enable sampling for large datasets (true/false)
+      max_features_vif: 20                           # Max features for VIF calculation (10-100) - FAST: limited
+      
+    # === MODEL RECOMMENDATION SETTINGS (FAST) ===
+    model_recommendation:
+      enabled: false                                 # Enable model recommendations (true/false) - FAST: disabled
+      include_ensemble_suggestions: false           # Include ensemble recommendations (true/false) - FAST: disabled
+      consider_dataset_size: true                   # Consider dataset size in recommendations (true/false)
+      performance_vs_interpretability: "performance" # Options: "performance", "interpretability", "balanced" - FAST: performance focus
+      
+    # === META-LEARNING CONFIGURATION (FAST) ===
+    meta_learning:
+      enabled: false                                 # Enable meta-learning features (true/false) - FAST: disabled
+      performance_database: "metadata/model_performance.db"  # Path to performance database
+      schema_similarity_threshold: 0.8              # Schema similarity threshold (0.5-0.95)
+      min_historical_samples: 5                     # Min samples for meta-learning (3-20)
+      transfer_learning: false                       # Enable transfer learning (true/false) - FAST: disabled
+      
+    # === FAIRNESS & BIAS DETECTION (FAST) ===
+    fairness:
+      enabled: false                                 # Enable fairness analysis (true/false) - FAST: disabled
+      protected_attributes: []                       # List of protected attributes (e.g., ["gender", "race"])
+      fairness_metrics: []                          # Fairness metrics to compute - FAST: none
+      bias_threshold: 0.1                           # Bias detection threshold (0.05-0.2)
+      mitigation_strategies: []                      # Available mitigation strategies - FAST: none
+
+  # Model Training Settings (FAST MODE)
+  model_training:
+    # === DATA SPLITTING CONFIGURATION (FAST) ===
+    test_size: 0.3                      # Split ratio for test set (0.1-0.4) - FAST: larger test set
+    validation_size: 0.0                # Split ratio for validation set (0.0-0.3) - FAST: no validation
+    random_state: 42                    # Random seed for reproducibility
+    
+    # === MODEL SELECTION (FAST) ===
+    max_models: 3                       # Maximum number of models to train (1-20) - FAST: limited
+    include_ensemble: false             # Include ensemble methods (true/false) - FAST: disabled
+    include_advanced: false             # Include advanced algorithms (true/false) - FAST: disabled
+    models_to_use: null                 # Specific models to use (null for auto-select) - FAST: auto-select basic models
+    
+    # === HYPERPARAMETER TUNING (FAST) ===
+    enable_tuning: false                # Enable hyperparameter optimization (true/false) - FAST: disabled
+    tuning_method: "none"               # Options: "grid", "random", "bayesian", "none" - FAST: none
+    tuning_iterations: 10               # Number of tuning iterations (10-500) - FAST: minimal
+    tuning_cv_folds: 3                  # CV folds for tuning (3-10) - FAST: minimal
+    
+    # === VALIDATION CONFIGURATION (FAST) ===
+    cv_folds: 3                         # Cross-validation folds (3-10) - FAST: minimal
+    scoring_strategy: "fast"            # Options: "fast", "comprehensive", "custom" - FAST: fast scoring
+    
+    # === PERFORMANCE SETTINGS (FAST) ===
+    parallel_jobs: 1                    # Parallel jobs (-1=all cores, 1=single, 2-16=specific) - FAST: single core
+    max_training_time_minutes: 10       # Max training time limit (5-120 minutes, null=no limit) - FAST: short time limit
+    memory_limit_gb: null               # Memory limit in GB (1-32, null=no limit)
+    
+    # === PREPROCESSING OPTIONS (FAST) ===
+    encoding_strategy: "none"           # Options: "none", "auto", "onehot", "target", "binary" - FAST: none
+    scaling_strategy: "none"            # Options: "none", "standard", "minmax", "robust", "quantile" - FAST: none
+    
+    # === BUSINESS FEATURES (FAST) ===
+    enable_business_features: false     # Enable business-specific features (true/false) - FAST: disabled
+    feature_selection_enabled: false   # Enable automated feature selection (true/false) - FAST: disabled
+    business_kpi_tracking: false       # Track business KPIs during training (true/false) - FAST: disabled
+    business_rules_file: "config/business_rules.yaml"  # Path to business rules config
+    business_kpis_file: "config/business_kpis.yaml"    # Path to business KPIs config
+    
+    # === OUTPUT CONFIGURATION (FAST) ===
+    save_models: false                  # Save trained models to disk (true/false) - FAST: disabled for speed
+    model_dir: "models"                 # Directory for saving models
+    save_predictions: false             # Save model predictions (true/false) - FAST: disabled
+    verbose: false                      # Verbose output during training (true/false) - FAST: minimal output
+
+  # Model Evaluation Settings (FAST MODE)
+  model_evaluation:
+    # === INPUT/OUTPUT CONFIGURATION (FAST) ===
+    models_dir: "models"                               # Directory containing trained models
+    training_report_path: "comprehensive_training_report.json"  # Path to training report
+    output_dir: "evaluation_results"                   # Output directory for evaluation results
+    
+    # === ANALYSIS COMPONENTS (FAST - Most Disabled) ===
+    enable_shap: false                                 # SHAP feature importance analysis (true/false) - FAST: disabled
+    enable_learning_curves: false                     # Learning curve analysis (true/false) - FAST: disabled
+    enable_residual_analysis: false                   # Residual analysis for regression (true/false) - FAST: disabled
+    enable_stability_analysis: false                  # Model stability testing (true/false) - FAST: disabled
+    enable_interpretability: false                    # Model interpretability analysis (true/false) - FAST: disabled
+    enable_uncertainty_analysis: false                # Uncertainty quantification (true/false) - FAST: disabled
+    
+    # === VISUALIZATION SETTINGS (FAST) ===
+    save_plots: false                                  # Save visualization plots (true/false) - FAST: disabled
+    plot_format: "png"                                # Options: "html", "png", "svg", "both" - FAST: simple PNG
+    plot_dpi: 150                                      # Plot resolution (150-600 DPI) - FAST: lower resolution
+    figure_size: [8, 6]                               # Figure size [width, height] in inches - FAST: smaller
+    
+    # === PERFORMANCE SETTINGS (FAST) ===
+    n_permutations: 10                                 # Permutations for feature importance (10-500) - FAST: minimal
+    n_bootstrap_samples: 20                           # Bootstrap samples for stability (50-1000) - FAST: minimal
+    max_shap_samples: 100                             # Max samples for SHAP analysis (100-5000) - FAST: minimal
+    n_models_to_evaluate: 1                           # Number of top models to evaluate (1-10) - FAST: single model
+    
+    # === FEATURE IMPORTANCE CONFIGURATION (FAST) ===
+    feature_importance:
+      top_k_features: 5                               # Number of top features to display (5-50) - FAST: fewer features
+      show_direction: false                           # Show positive/negative impact (true/false) - FAST: disabled
+      add_log_odds_axis: false                        # Add log-odds scale for classification (true/false) - FAST: disabled
+      permutation_error_bars: false                   # Show error bars in permutation plots (true/false) - FAST: disabled
+      
+    # === STABILITY TESTING CONFIGURATION (FAST) ===
+    stability_testing:
+      noise_levels: [0.05]                            # Noise levels for testing [0.001-0.5] - FAST: single level
+      dropout_rates: [0.1]                            # Feature dropout rates [0.01-0.5] - FAST: single rate
+      random_state: 42                                # Random seed for reproducibility
+      
+    # === LOGGING CONFIGURATION (FAST) ===
+    verbose: false                                     # Verbose output (true/false) - FAST: minimal output
+    log_level: "WARNING"                              # Options: "DEBUG", "INFO", "WARNING", "ERROR" - FAST: warnings only
+
+# =============================================================================
+# 🔧 CUSTOM MODE - Full control with comprehensive configuration
+# =============================================================================
+custom_mode:
+  # Data Discovery Settings
+  data_discovery:
+    # === PROFILING CONFIGURATION ===
+    profiling:
+      output_dir_name: "data_profiles"               # Directory name for profiling outputs
+      generate_html: true                            # Generate interactive HTML reports (true/false)
+      save_raw_profile: true                         # Save raw profiling JSON data (true/false)
+      enable_advanced_stats: true                    # Enable advanced statistical analysis (true/false)
+      generate_data_lineage: true                    # Generate data lineage tracking (true/false)
+      
+    # === QUALITY ASSESSMENT ===
+    quality_assessment:
+      enabled: true                                  # Enable data quality assessment (true/false)
+      use_enhanced_system: true                      # Use enhanced quality system (true/false)
+      quality_gates: true                            # Enable quality gates (true/false)
+      automated_recommendations: true               # Generate automated recommendations (true/false)
+      thresholds:
+        completeness_min: 0.8                       # Min completeness threshold (0.5-0.99)
+        consistency_min: 0.7                        # Min consistency threshold (0.5-0.95)
+        validity_min: 0.9                           # Min validity threshold (0.6-0.99)
+        uniqueness_check: true                       # Enable uniqueness checking (true/false)
+        
+    # === CONFIGURATION GENERATION ===
+    config_generation:
+      cleaning_config_template: true                # Generate cleaning config template (true/false)
+      pipeline_config_update: true                  # Update pipeline config (true/false)
+      auto_detect_target: true                      # Auto-detect target column (true/false)
+      suggest_improvements: true                     # Suggest data improvements (true/false)
+
+  # Data Cleaning Settings
+  data_cleaning:
+    # === EXECUTION CONFIGURATION ===
+    execution:
+      validate_before_cleaning: true                # Validate data before cleaning (true/false)
+      backup_original_data: false                   # Create backup of original data (true/false)
+      generate_cleaning_report: true               # Generate detailed cleaning report (true/false)
+      save_intermediate_steps: false               # Save intermediate cleaning steps (true/false)
+      
+    # === QUALITY GATES ===
+    quality_gates:
+      enabled: true                                 # Enable quality gates (true/false)
+      min_data_retention: 0.5                      # Minimum data retention ratio (0.3-0.9)
+      max_missing_after_cleaning: 0.1              # Max missing values after cleaning (0.05-0.3)
+      require_target_column: true                   # Require target column presence (true/false)
+      
+    # === OUTPUT CONFIGURATION ===
+    output:
+      save_cleaned_data: true                       # Save cleaned dataset (true/false)
+      output_filename: "cleaned_data.csv"          # Output filename
+      log_all_transformations: true                # Log all transformation steps (true/false)
+      generate_comparison_report: true             # Generate before/after comparison (true/false)
+      
+    # === ADVANCED CLEANING OPTIONS (Available in CleaningConfig) ===
+    # chunk_size: null                             # Chunk size for large datasets (1000-100000)
+    # output_delimiter: ";"                        # CSV delimiter: ",", ";", "\t", "|"
+    # output_quoting: 1                            # CSV quoting: 0=MINIMAL, 1=ALL, 2=NONNUMERIC, 3=NONE
+    # output_encoding: "utf-8"                     # File encoding: "utf-8", "latin1", "cp1252"
+    # remove_duplicates: true                      # Remove duplicate rows (true/false)
+    # duplicate_subset: null                       # Columns for duplicate detection (null=all)
+    # remove_low_variance: true                    # Remove low variance features (true/false)
+    # low_variance_thresh: 1                       # Low variance threshold (0-10)
+    # drop_high_miss_cols: true                    # Drop high missing columns (true/false)
+    # missing_col_thresh: 0.3                      # Missing column threshold (0.1-0.8)
+    # drop_high_miss_rows: false                   # Drop high missing rows (true/false)
+    # missing_row_thresh: 0.5                      # Missing row threshold (0.2-0.9)
+    # impute_num: "auto"                           # Numeric imputation: "auto", "mean", "median", "knn", "iterative"
+    # impute_cat: "auto"                           # Categorical imputation: "auto", "most_frequent", "constant"
+    # outlier_removal: true                        # Remove outliers (true/false)
+    # outlier_method: "iqr"                        # Outlier method: "iqr", "isoforest", "zscore"
+    # iqr_factor: 1.5                              # IQR factor for outlier detection (1.0-3.0)
+    # skew_correction: true                        # Apply skew correction (true/false)
+    # skew_thresh: 1.0                             # Skewness threshold (0.5-2.0)
+    # skew_method: "yeo-johnson"                   # Skew method: "yeo-johnson", "box-cox", "log"
+
+  # ML Advisory Settings
+  ml_advisory:
+    # === ASSUMPTION TESTING CONFIGURATION ===
+    assumption_testing:
+      enabled: true                                    # Enable assumption testing (true/false)
+      
+      # === NORMALITY TESTING ===
+      normality_alpha: 0.05                          # Significance level for normality tests (0.01-0.1)
+      normality_max_sample: 5000                     # Max samples for normality testing (1000-10000)
+      normality_method: "kolmogorov"                    # Options: "shapiro", "kolmogorov", "anderson", "jarque_bera"
+      
+      # === HOMOSCEDASTICITY TESTING ===
+      homo_alpha: 0.05                               # Significance level for variance tests (0.01-0.1)
+      homo_method: "white"                   # Options: "breusch_pagan", "goldfeld_quandt", "white"
+      
+      # === MULTICOLLINEARITY TESTING ===
+      vif_threshold: 9                            # VIF threshold for multicollinearity (5.0-50.0)
+      correlation_threshold: 0.90                    # Correlation threshold (0.8-0.99)
+      max_features_vif: 10                           # Max features for VIF calculation (10-100)
+      
+      # === CLASS BALANCE TESTING ===
+      imbalance_threshold: 0.85                       # Threshold for class imbalance (0.6-0.95)
+      min_class_size: 25                             # Minimum class size for analysis (10-100)
+      
+      # === LINEARITY & INDEPENDENCE TESTING ===
+      linearity_alpha: 0.1                         # Significance level for linearity tests (0.01-0.1)
+      independence_alpha: 0.1                       # Significance level for independence tests (0.01-0.1)
+      
+      # === PERFORMANCE & SCALABILITY ===
+      chunk_size: 1000                               # Chunk size for large datasets (1000-50000, null=auto)
+      enable_sampling: true                          # Enable sampling for large datasets (true/false)
+      
+      # === OUTPUT CONFIGURATION ===
+      verbose: true                                  # Verbose assumption testing output (true/false)
+      generate_recommendations: true                 # Generate model recommendations (true/false)
+      
+    # === MODEL RECOMMENDATION SETTINGS ===
+    model_recommendation:
+      enabled: true                                  # Enable model recommendations (true/false)
+      include_ensemble_suggestions: true            # Include ensemble recommendations (true/false)
+      consider_dataset_size: true                   # Consider dataset size in recommendations (true/false)
+      performance_vs_interpretability: "balanced"   # Options: "performance", "interpretability", "balanced"
+      
+    # === META-LEARNING CONFIGURATION ===
+    meta_learning:
+      enabled: true                                  # Enable meta-learning features (true/false)
+      performance_database: "metadata/model_performance.db"  # Path to performance database
+      schema_similarity_threshold: 0.8              # Schema similarity threshold (0.5-0.95)
+      min_historical_samples: 5                     # Min samples for meta-learning (3-20)
+      transfer_learning: true                        # Enable transfer learning (true/false)
+      
+    # === FAIRNESS & BIAS DETECTION ===
+    fairness:
+      enabled: true                                  # Enable fairness analysis (true/false)
+      protected_attributes: []                       # List of protected attributes (e.g., ["gender", "race"])
+      fairness_metrics: ["demographic_parity", "equalized_odds", "calibration"]  # Fairness metrics to compute
+      bias_threshold: 0.1                           # Bias detection threshold (0.05-0.2)
+      mitigation_strategies: ["reweighting", "preprocessing", "postprocessing"]  # Available mitigation strategies
+
+  # Model Training Settings
+  model_training:
+    # === DATA SPLITTING CONFIGURATION ===
+    test_size: 0.2                      # Split ratio for test set (0.1-0.4)
+    validation_size: 0.1                # Split ratio for validation set (0.0-0.3)
+    random_state: 42                    # Random seed for reproducibility
+    
+    # === MODEL SELECTION ===
+    max_models: 5                       # Maximum number of models to train (1-20)
+    include_ensemble: true              # Include ensemble methods (true/false)
+    include_advanced: true              # Include advanced algorithms (true/false)
+    models_to_use:                      # Specific models to use (null for auto-select)
+      - "RandomForestClassifier"        # Options: RandomForestClassifier, GradientBoostingClassifier
+      - "GradientBoostingClassifier"    #         XGBClassifier, LogisticRegression, SVM, KNN
+      - "XGBClassifier"                 #         AdaBoostClassifier, ExtraTreesClassifier
+      - "LogisticRegression"
+      - "KNN"                           #         LightGBMClassifier, CatBoostClassifier
+      
+    # === HYPERPARAMETER TUNING ===
+    enable_tuning: true                 # Enable hyperparameter optimization (true/false)
+    tuning_method: "grid"               # Options: "grid", "random", "bayesian", "none"
+    tuning_iterations: 50               # Number of tuning iterations (10-500)
+    tuning_cv_folds: 5                  # CV folds for tuning (3-10)
+    
+    # === VALIDATION CONFIGURATION ===
+    cv_folds: 5                         # Cross-validation folds (3-10)
+    scoring_strategy: "comprehensive"   # Options: "fast", "comprehensive", "custom"
+    
+    # === PERFORMANCE SETTINGS ===
+    parallel_jobs: -1                   # Parallel jobs (-1=all cores, 1=single, 2-16=specific)
+    max_training_time_minutes: 30       # Max training time limit (5-120 minutes, null=no limit)
+    memory_limit_gb: null               # Memory limit in GB (1-32, null=no limit)
+    
+    # === PREPROCESSING OPTIONS ===
+    encoding_strategy: "none"           # Options: "none", "auto", "onehot", "target", "binary"
+    scaling_strategy: "none"            # Options: "none", "standard", "minmax", "robust", "quantile"
+    
+    # === BUSINESS FEATURES ===
+    enable_business_features: false     # Enable business-specific features (true/false)
+    feature_selection_enabled: false   # Enable automated feature selection (true/false)
+    business_kpi_tracking: false       # Track business KPIs during training (true/false)
+    business_rules_file: "config/business_rules.yaml"  # Path to business rules config
+    business_kpis_file: "config/business_kpis.yaml"    # Path to business KPIs config
+    
+    # === OUTPUT CONFIGURATION ===
+    save_models: true                  # Save trained models to disk (true/false)
+    model_dir: "models"                 # Directory for saving models
+    save_predictions: true              # Save model predictions (true/false)
+    verbose: true                       # Verbose output during training (true/false)
+
+  # Model Evaluation Settings
+  model_evaluation:
+    # === INPUT/OUTPUT CONFIGURATION ===
+    models_dir: "models"                               # Directory containing trained models
+    training_report_path: "comprehensive_training_report.json"  # Path to training report
+    output_dir: "evaluation_results"                   # Output directory for evaluation results
+    
+    # === ANALYSIS COMPONENTS (Enable/Disable) ===
+    enable_shap: false                                  # SHAP feature importance analysis (true/false)
+    enable_learning_curves: true                      # Learning curve analysis (true/false)
+    enable_residual_analysis: true                    # Residual analysis for regression (true/false)
+    enable_stability_analysis: true                   # Model stability testing (true/false)
+    enable_interpretability: true                     # Model interpretability analysis (true/false)
+    enable_uncertainty_analysis: true                 # Uncertainty quantification (true/false)
+    
+    # === VISUALIZATION SETTINGS ===
+    save_plots: true                                   # Save visualization plots (true/false)
+    plot_format: "html"                               # Options: "html", "png", "svg", "both"
+    plot_dpi: 300                                      # Plot resolution (150-600 DPI)
+    figure_size: [12, 8]                              # Figure size [width, height] in inches
+    
+    # === PERFORMANCE SETTINGS ===
+    n_permutations: 100                                 # Permutations for feature importance (10-500)
+    n_bootstrap_samples: 200                          # Bootstrap samples for stability (50-1000)
+    max_shap_samples: 1000                            # Max samples for SHAP analysis (100-5000)
+    n_models_to_evaluate: 2                           # Number of top models to evaluate (1-10)
+    
+    # === FEATURE IMPORTANCE CONFIGURATION ===
+    feature_importance:
+      top_k_features: 12                              # Number of top features to display (5-50)
+      show_direction: true                            # Show positive/negative impact (true/false)
+      add_log_odds_axis: true                         # Add log-odds scale for classification (true/false)
+      permutation_error_bars: true                    # Show error bars in permutation plots (true/false)
+      
+    # === STABILITY TESTING CONFIGURATION ===
+    stability_testing:
+      noise_levels: [0.01, 0.05, 0.1, 0.5]           # Noise levels for testing [0.001-0.5]
+      dropout_rates: [0.05, 0.1, 0.2, 0.5]           # Feature dropout rates [0.01-0.5]
+      random_state: 42                                # Random seed for reproducibility
+      
+    # === LOGGING CONFIGURATION ===
+    verbose: true                                      # Verbose output (true/false)
+    log_level: "INFO"                                 # Options: "DEBUG", "INFO", "WARNING", "ERROR"
+
+# =============================================================================
+# 🔧 INFRASTRUCTURE & SYSTEM SETTINGS (shared by both modes)
+# =============================================================================
+infrastructure:
+  # === FEATURE FLAGS ===
+  feature_flags:
+    data_quality_v2: true                             # Enable enhanced data quality system (true/false)
+    mlflow_tracking: true                            # Enable MLflow experiment tracking (true/false)
+    plugin_system: true                               # Enable plugin architecture (true/false)
+    business_alignment: true                          # Enable business alignment features (true/false)
+    metadata_tracking: true                           # Enable metadata tracking (true/false)
+    lineage_tracking: true                            # Enable data lineage tracking (true/false)
+    enhanced_logging: true                            # Enable enhanced logging features (true/false)
+  
+  # === MLFLOW CONFIGURATION ===
+  mlflow:
+    tracking_uri: "file:///mnt/c/Users/tony3/Desktop/tidytuesday/ds-autoadvisor/mlruns"        # MLflow tracking URI
+    experiment_name: "ds-autoadvisor-v3"              # Experiment name for tracking
+    artifact_location: "./mlruns"                     # Artifact storage location
+    auto_log: true                                   # Enable automatic logging (true/false)
+    log_system_metrics: true                        # Log system performance metrics (true/false)
+    log_artifacts: true                              # Auto-log model artifacts (true/false)
+  
+  # === LOGGING CONFIGURATION ===
+  logging:
+    level: "INFO"                                     # Options: "DEBUG", "INFO", "WARNING", "ERROR"
+    structured: true                                  # Use structured logging format (true/false)
+    correlation_tracking: true                       # Track correlation IDs (true/false)
+    performance_metrics: true                        # Log performance metrics (true/false)
+    log_file: "logs/pipeline_v3.log"                 # Log file path
+    console_output: true                              # Enable console output (true/false)
+    
+  # === PLUGIN SYSTEM ===
+  plugins:
+    enabled: true                                     # Enable plugin system (true/false)
+    plugin_dir: "plugins"                            # Plugin directory path
+    auto_discovery: true                              # Auto-discover plugins (true/false)
+    validation_required: true                        # Require plugin validation (true/false)
+    
+  # === METADATA STORAGE ===
+  metadata:
+    enabled: true                                     # Enable metadata tracking (true/false)
+    store_type: "sqlite"                             # Options: "sqlite", "postgresql", "mysql"
+    connection_string: "sqlite:///metadata/pipeline_metadata.db"  # Database connection string
+    track_lineage: true                              # Track data lineage (true/false)
+    track_performance: true                          # Track performance metrics (true/false)
+    retention_days: 90                               # Metadata retention period (30-365 days)
+
+# =============================================================================
+# 🎯 BUSINESS ALIGNMENT FEATURES (shared by both modes)
+# =============================================================================
+business_features:
+  # === FEATURE SELECTION CONFIGURATION ===
+  feature_selection:
+    enabled: true                                     # Enable automated feature selection (true/false)
+    methods:
+      statistical: true                               # Use statistical feature selection (true/false)
+      ml_based: true                                  # Use ML-based feature selection (true/false)
+      business_rules: true                            # Use business rule-based selection (true/false)
+    human_oversight:
+      enabled: true                                   # Enable human oversight (true/false)
+      approval_required: true                         # Require human approval (true/false)
+      review_stages: ["initial_selection", "ml_validation", "final_confirmation"]  # Review stage names
+    consistency_strategy: "intersection"             # Options: "intersection", "union", "voting"
+    min_feature_count: 5                             # Minimum features to select (1-20)
+    max_feature_count: 50                            # Maximum features to select (10-200)
+    business_rules_file: "config/business_rules.yaml"  # Path to business rules config
+    
+  # === KPI TRACKING CONFIGURATION ===
+  kpi_tracking:
+    enabled: true                                     # Enable KPI tracking (true/false)
+    config_file: "config/business_kpis.yaml"         # Path to KPI configuration file
+    custom_kpis:
+      revenue_impact:
+        weight: 0.4                                   # Weight for revenue impact KPI (0.0-1.0)
+        calculation: "churn_prevention_value - false_positive_cost"  # KPI calculation formula
+      operational_efficiency:
+        weight: 0.3                                   # Weight for operational efficiency KPI (0.0-1.0)
+        calculation: "model_accuracy * process_automation_score"     # KPI calculation formula
+      customer_satisfaction:
+        weight: 0.3                                   # Weight for customer satisfaction KPI (0.0-1.0)
+        calculation: "customer_satisfaction_score"    # KPI calculation formula
+    roi_analysis:
+      enabled: true                                   # Enable ROI analysis (true/false)
+      time_horizon_months: 12                        # ROI analysis time horizon (6-36 months)
+      discount_rate: 0.10                            # Discount rate for ROI calculation (0.05-0.20)
+    correlation_tracking:
+      enabled: true                                   # Enable correlation tracking (true/false)
+      threshold_strong: 0.7                          # Strong correlation threshold (0.6-0.9)
+      threshold_moderate: 0.4                        # Moderate correlation threshold (0.3-0.7)
+
+# =============================================================================
+# ⚙️ WORKFLOW & EXECUTION SETTINGS (shared by both modes)
+# =============================================================================
+workflow:
+  # === PIPELINE STAGES ===
+  stages:                                             # Pipeline execution order
+    - "discovery"                                     # Data discovery and profiling
+    - "cleaning"                                      # Data cleaning and preprocessing
+    - "advisory"                                      # ML advisory and assumption testing
+    - "training"                                      # Model training and selection
+    - "evaluation"                                    # Model evaluation and analysis
+  
+  # === EXECUTION CONFIGURATION ===
+  execution:
+    parallel_execution: false                        # Enable parallel stage execution (true/false)
+    stage_dependencies: true                         # Enforce stage dependencies (true/false)
+    plugin_stages: ["feature_selection", "business_analysis"]  # Additional plugin stages
+    skip_on_failure: false                           # Skip failed stages (true/false)
+    retry_attempts: 3                                # Number of retry attempts (1-10)
+    
+  # === ERROR HANDLING ===
+  error_handling:
+    stop_on_error: false                             # Stop pipeline on first error (true/false)
+    skip_failed_stages: true                         # Skip failed stages and continue (true/false)
+    recovery_strategies: true                        # Enable error recovery strategies (true/false)
+    generate_error_reports: true                     # Generate detailed error reports (true/false)

@@ -192,6 +192,35 @@ class CleaningConfig:
                 print(f"⚠️ Could not load column configs from {self.column_config_path}: {e}")
 
     @classmethod
+    def from_yaml_config(cls, yaml_config: Dict[str, Any], input_path: str, output_path: str, log_path: str, **overrides):
+        """Create CleaningConfig from YAML configuration with required paths"""
+        # Extract relevant settings from YAML
+        config_params = {
+            'input_path': input_path,
+            'output_path': output_path,
+            'log_path': log_path,
+            'verbose': yaml_config.get('verbose', True),
+            'remove_duplicates': yaml_config.get('remove_duplicates', True),
+            'remove_low_variance': yaml_config.get('remove_low_variance', True),
+            'drop_high_miss_cols': yaml_config.get('drop_high_miss_cols', True),
+            'missing_col_thresh': yaml_config.get('missing_col_thresh', 0.3),
+            'drop_high_miss_rows': yaml_config.get('drop_high_miss_rows', False),
+            'missing_row_thresh': yaml_config.get('missing_row_thresh', 0.5),
+            'impute_num': yaml_config.get('impute_num', 'auto'),
+            'impute_cat': yaml_config.get('impute_cat', 'auto'),
+            'outlier_removal': yaml_config.get('outlier_removal', True),
+            'outlier_method': yaml_config.get('outlier_method', 'iqr'),
+            'scaling': yaml_config.get('scaling', 'standard'),
+            'encoding': yaml_config.get('encoding', 'onehot'),
+            'target_column': yaml_config.get('target_column', None)
+        }
+        
+        # Apply any overrides
+        config_params.update(overrides)
+        
+        return cls(**config_params)
+
+    @classmethod
     def create_csv_preset(cls, preset: str, **kwargs):
         """Create config with predefined CSV output presets"""
         presets = {

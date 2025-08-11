@@ -71,48 +71,97 @@ warnings.filterwarnings('ignore')
 
 @dataclass
 class TrainerConfig:
-    """Type-safe configuration for model training"""
+    """Type-safe configuration for model training - ALL values loaded from YAML"""
     # Data splitting
-    test_size: float = 0.2
-    validation_size: float = 0.1  # From training set
-    random_state: int = 42
+    test_size: float
+    validation_size: float
+    random_state: int
     
     # Model selection
-    max_models: int = 10  # Limit number of models to try
-    include_ensemble: bool = True
-    include_advanced: bool = True  # XGBoost, LightGBM, etc.
+    max_models: int
+    include_ensemble: bool
+    include_advanced: bool
+    models_to_use: Optional[List[str]]
     
     # Hyperparameter tuning
-    enable_tuning: bool = True
-    tuning_method: str = "random"  # "grid", "random", "none"
-    tuning_iterations: int = 50
-    tuning_cv_folds: int = 3
+    enable_tuning: bool
+    tuning_method: str
+    tuning_iterations: int
+    tuning_cv_folds: int
     
     # Validation
-    cv_folds: int = 5
-    scoring_strategy: str = "comprehensive"  # "fast", "comprehensive"
+    cv_folds: int
+    scoring_strategy: str
     
     # Performance
-    parallel_jobs: int = -1
-    max_training_time_minutes: Optional[int] = 30
-    memory_limit_gb: Optional[float] = None
+    parallel_jobs: int
+    max_training_time_minutes: Optional[int]
+    memory_limit_gb: Optional[float]
     
     # Encoding and preprocessing
-    encoding_strategy: str = "onehot"  # "onehot", "label", "ordinal"
-    scaling_strategy: str = "standard"  # "standard", "minmax", "robust", "none"
+    encoding_strategy: str
+    scaling_strategy: str
     
     # Business features
-    enable_business_features: bool = True
-    feature_selection_enabled: bool = True
-    business_kpi_tracking: bool = True
-    business_rules_file: str = "config/business_rules.yaml"
-    business_kpis_file: str = "config/business_kpis.yaml"
+    enable_business_features: bool
+    feature_selection_enabled: bool
+    business_kpi_tracking: bool
+    business_rules_file: str
+    business_kpis_file: str
     
     # Output
-    save_models: bool = True
-    model_dir: str = "models"
-    save_predictions: bool = True
-    verbose: bool = True
+    save_models: bool
+    model_dir: str
+    save_predictions: bool
+    verbose: bool
+    
+    @classmethod
+    def from_yaml_config(cls, config_dict: Dict[str, Any]) -> 'TrainerConfig':
+        """Create TrainerConfig from YAML configuration dictionary"""
+        return cls(
+            # Data splitting
+            test_size=config_dict.get('test_size', 0.2),
+            validation_size=config_dict.get('validation_size', 0.1),
+            random_state=config_dict.get('random_state', 42),
+            
+            # Model selection
+            max_models=config_dict.get('max_models', 2),
+            include_ensemble=config_dict.get('include_ensemble', True),
+            include_advanced=config_dict.get('include_advanced', True),
+            models_to_use=config_dict.get('models_to_use', None),
+            
+            # Hyperparameter tuning
+            enable_tuning=config_dict.get('enable_tuning', True),
+            tuning_method=config_dict.get('tuning_method', 'random'),
+            tuning_iterations=config_dict.get('tuning_iterations', 50),
+            tuning_cv_folds=config_dict.get('tuning_cv_folds', 6),
+            
+            # Validation
+            cv_folds=config_dict.get('cv_folds', 6),
+            scoring_strategy=config_dict.get('scoring_strategy', 'comprehensive'),
+            
+            # Performance
+            parallel_jobs=config_dict.get('parallel_jobs', -1),
+            max_training_time_minutes=config_dict.get('max_training_time_minutes', 30),
+            memory_limit_gb=config_dict.get('memory_limit_gb', None),
+            
+            # Encoding and preprocessing
+            encoding_strategy=config_dict.get('encoding_strategy', 'none'),
+            scaling_strategy=config_dict.get('scaling_strategy', 'none'),
+            
+            # Business features
+            enable_business_features=config_dict.get('enable_business_features', True),
+            feature_selection_enabled=config_dict.get('feature_selection_enabled', True),
+            business_kpi_tracking=config_dict.get('business_kpi_tracking', True),
+            business_rules_file=config_dict.get('business_rules_file', 'config/business_rules.yaml'),
+            business_kpis_file=config_dict.get('business_kpis_file', 'config/business_kpis.yaml'),
+            
+            # Output
+            save_models=config_dict.get('save_models', True),
+            model_dir=config_dict.get('model_dir', 'models'),
+            save_predictions=config_dict.get('save_predictions', True),
+            verbose=config_dict.get('verbose', True)
+        )
 
 @dataclass
 class ModelResult:
@@ -480,6 +529,34 @@ class EnhancedModelTrainer:
                 print(f"⚠️ Unknown scaling strategy '{self.config.scaling_strategy}', using StandardScaler")
             return StandardScaler()
     
+    def _get_actual_preprocessing_method(self):
+        """Get accurate description of preprocessing method used"""
+        if self.config.encoding_strategy == "none" and self.config.scaling_strategy == "none":
+            return "Pre-cleaned data (no preprocessing needed)"
+        elif self.config.encoding_strategy in ["onehot", "ordinal"]:
+            return "ColumnTransformer (encoding + scaling)"
+        elif self.config.encoding_strategy == "label":
+            return "In-place LabelEncoder + Scaler"
+        elif self.config.encoding_strategy == "none" and self.config.scaling_strategy != "none":
+            return f"Scaling only ({self.config.scaling_strategy.title()}Scaler)"
+        else:
+            return f"Custom preprocessing ({self.config.encoding_strategy} + {self.config.scaling_strategy})"
+    
+    def _get_pipeline_structure_description(self):
+        """Get accurate description of pipeline structure"""
+        if self.config.encoding_strategy == "none" and self.config.scaling_strategy == "none":
+            return "data -> model (no preprocessing)"
+        elif self.config.encoding_strategy in ["onehot", "ordinal"]:
+            return "data -> ColumnTransformer -> model"
+        elif self.config.encoding_strategy == "none" and self.config.scaling_strategy != "none":
+            return "data -> scaler -> model"
+        elif self.config.encoding_strategy == "label" and self.config.scaling_strategy != "none":
+            return "data -> label_encoder -> scaler -> model"
+        elif self.config.encoding_strategy == "label" and self.config.scaling_strategy == "none":
+            return "data -> label_encoder -> model"
+        else:
+            return f"data -> {self.config.encoding_strategy}+{self.config.scaling_strategy} -> model"
+    
     def prepare_data(
         self, 
         df: pd.DataFrame, 
@@ -833,8 +910,32 @@ class EnhancedModelTrainer:
         else:
             models_to_try = self.classification_models
         
-        # Limit number of models if specified
-        if self.config.max_models < len(models_to_try):
+        # Check for custom model selection (models_to_use) - prioritize this in custom mode
+        if hasattr(self.config, 'models_to_use') and self.config.models_to_use:
+            if self.config.verbose:
+                print(f"🎯 Custom model selection: {self.config.models_to_use}")
+            
+            # Filter models to only include those specified in models_to_use
+            custom_models = {}
+            for model_name in self.config.models_to_use:
+                if model_name in models_to_try:
+                    custom_models[model_name] = models_to_try[model_name]
+                    if self.config.verbose:
+                        print(f"   ✅ {model_name} - Found in registry")
+                else:
+                    if self.config.verbose:
+                        print(f"   ❌ {model_name} - Not found in registry")
+            
+            if custom_models:
+                models_to_try = custom_models
+                if self.config.verbose:
+                    print(f"🤖 Will train {len(models_to_try)} custom-selected models")
+            else:
+                if self.config.verbose:
+                    print(f"⚠️ No valid models found in models_to_use list, falling back to max_models limit")
+                
+        # If no custom model selection, apply original max_models logic
+        elif self.config.max_models < len(models_to_try):
             # Priority: keep advanced models and ensemble methods
             priority_models = ["XGBRegressor", "XGBClassifier", "RandomForestRegressor", 
                              "RandomForestClassifier", "GradientBoostingRegressor", 
@@ -1070,14 +1171,14 @@ class EnhancedModelTrainer:
                 "best_model": best_models[0].name if best_models else None,
                 "total_training_time": sum(r.training_time for r in results),
                 "encoding_strategy": self.config.encoding_strategy,
-                "preprocessing_method": "ColumnTransformer" if self.config.encoding_strategy in ["onehot", "ordinal"] else "In-place LabelEncoder",
+                "preprocessing_method": self._get_actual_preprocessing_method(),
                 **business_summary
             },
             "preprocessing_details": {
                 "encoding_strategy": self.config.encoding_strategy,
                 "scaling_strategy": self.config.scaling_strategy,
                 "scaling_method": self.config.scaling_strategy.title() + "Scaler" if self.config.scaling_strategy != "none" else "No scaling",
-                "pipeline_structure": "preprocessor -> model" if self.config.encoding_strategy in ["onehot", "ordinal"] else "scaler -> model"
+                "pipeline_structure": self._get_pipeline_structure_description()
             },
             "feature_selection": feature_selection_summary,
             "business_features": {

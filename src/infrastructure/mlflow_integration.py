@@ -16,13 +16,33 @@ Features:
 
 import mlflow
 import mlflow.sklearn
-import mlflow.xgboost
-import mlflow.lightgbm
-import mlflow.pytorch
-import mlflow.tensorflow
 from mlflow.tracking import MlflowClient
 from mlflow.entities import ViewType
-from mlflow.store.artifact.runs_artifact_repo import RunsArtifactRepository
+
+# Optional imports for different ML frameworks
+try:
+    import mlflow.xgboost
+    HAS_XGBOOST = True
+except ImportError:
+    HAS_XGBOOST = False
+
+try:
+    import mlflow.lightgbm
+    HAS_LIGHTGBM = True
+except ImportError:
+    HAS_LIGHTGBM = False
+
+try:
+    import mlflow.pytorch
+    HAS_PYTORCH = True
+except ImportError:
+    HAS_PYTORCH = False
+
+try:
+    import mlflow.tensorflow
+    HAS_TENSORFLOW = True
+except ImportError:
+    HAS_TENSORFLOW = False
 
 import os
 import pickle
@@ -108,10 +128,12 @@ class MLflowManager:
                 log_models=True
             )
             
-            # Enable autologging for other frameworks
+            # Enable autologging for other frameworks if available
             try:
-                mlflow.xgboost.autolog()
-                mlflow.lightgbm.autolog()
+                if HAS_XGBOOST:
+                    mlflow.xgboost.autolog()
+                if HAS_LIGHTGBM:
+                    mlflow.lightgbm.autolog()
             except Exception as e:
                 self.logger.debug(f"Optional autolog setup failed: {e}")
         
@@ -284,13 +306,13 @@ class MLflowManager:
             # Determine model type and log accordingly
             model_class = type(model).__name__
             
-            if 'XGB' in model_class:
+            if 'XGB' in model_class and HAS_XGBOOST:
                 model_info = mlflow.xgboost.log_model(
                     model, 
                     f"models/{model_name}",
                     registered_model_name=f"ds_autoadvisor_{model_name}"
                 )
-            elif 'LightGBM' in model_class or 'LGBM' in model_class:
+            elif ('LightGBM' in model_class or 'LGBM' in model_class) and HAS_LIGHTGBM:
                 model_info = mlflow.lightgbm.log_model(
                     model,
                     f"models/{model_name}",
@@ -481,13 +503,18 @@ class MLflowManager:
             try:
                 return mlflow.sklearn.load_model(model_uri)
             except:
-                try:
-                    return mlflow.xgboost.load_model(model_uri)
-                except:
+                if HAS_XGBOOST:
+                    try:
+                        return mlflow.xgboost.load_model(model_uri)
+                    except:
+                        pass
+                if HAS_LIGHTGBM:
                     try:
                         return mlflow.lightgbm.load_model(model_uri)
                     except:
-                        return mlflow.pyfunc.load_model(model_uri)
+                        pass
+                # Fallback to pyfunc
+                return mlflow.pyfunc.load_model(model_uri)
             
         except Exception as e:
             self.logger.error(f"Failed to load model {model_name}: {e}")

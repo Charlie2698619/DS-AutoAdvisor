@@ -220,8 +220,8 @@ model_training:
   random_state: 42
   
   # Model selection
-  max_models: 3
-  include_ensemble: true
+  max_models: 5
+  include_ensemble: true  # 
   include_advanced: true  # XGBoost, LightGBM, CatBoost
   
   # Hyperparameter tuning

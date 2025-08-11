@@ -1,42 +1,46 @@
 # DS-AutoAdvisor Version 2.0 Unified Configuration
-# Organized by Pipeline Steps - No Overlap with Cleaning Config
+# Clear, Non-Overlapping Configuration Structure
 #
-# This configuration file controls pipeline behavior and settings.
-# Column-specific cleaning rules are in separate cleaning_config_template.yaml files.
+# USAGE GUIDE:
+# - Each script uses exactly ONE clearly marked section
+# - No duplicate or overlapping configurations
+# - Future extensions clearly separated from current functionality
 
 # =============================================================================
-# GLOBAL PIPELINE SETTINGS
+# 🎯 ACTIVE PIPELINE CONFIGURATION
+# These sections are used by the current pipeline scripts
 # =============================================================================
+
+# Used by: All pipeline scripts for global settings
 global:
   project_name: "DS-AutoAdvisor Pipeline"
   version: "2.0"
   
-  # Environment and deployment
+  # Environment
   environment: "development"  # "development", "staging", "production"
   deployment_mode: "local"    # "local", "cloud", "hybrid"
   
-  # Core data settings (paths and basic format info)
+  # Data settings
   data_input_path: "data/telco_churn_data.csv"
   target_column: "Churn"
-  target_column_variants: ["Churn", "Churn_binary_0", "Churn_encoded", "Churn_label"]  # Handle transformed target names
+  target_column_variants: ["Churn", "Churn_binary_0", "Churn_encoded", "Churn_label"]
   
-  # Post-cleaning target specification (override after seeing cleaned data)
-  # Set these after running data cleaning to see how target column was transformed
+  # Post-cleaning target override (set after data cleaning)
   post_cleaning_target:
-    enabled: false  # Set to true to override target detection
-    target_column_name: "Churn_binary_0"  # e.g., "Churn_binary_0" - fill this after cleaning
-    # Usage: 1) Run cleaning, 2) Check output column names, 3) Set target_column_name, 4) Set enabled: true
+    enabled: false
+    target_column_name: "Churn_binary_0"
   
+  # File settings
   csv_delimiter: ","
   csv_encoding: "utf-8"
   random_state: 42
   
-  # Output and versioning
+  # Output
   output_base_dir: "pipeline_outputs"
   versioning_enabled: true
   metadata_store_path: "metadata/pipeline_metadata.db"
   
-  # Human oversight settings
+  # Human oversight
   human_intervention:
     enabled: true
     mode: "interactive"  # "interactive", "automated", "approval_only"
@@ -47,11 +51,8 @@ global:
       model_training: 0.9
       model_evaluation: 0.95
 
-# =============================================================================
-# STEP 1: DATA DISCOVERY & PROFILING
-# =============================================================================
-step_01_discovery:
-  # Data profiling settings
+# Used by: 01_data_discovery.py
+data_discovery:
   profiling:
     output_dir_name: "data_profiles"
     generate_html: true
@@ -59,57 +60,46 @@ step_01_discovery:
     enable_advanced_stats: true
     generate_data_lineage: true
     
-  # Data quality assessment
   quality_assessment:
     enabled: true
-    use_enhanced_system: true  # Use existing enhanced_quality_system.py
+    use_enhanced_system: true
     quality_gates: true
     automated_recommendations: true
     
-    # Thresholds for quality scoring
     thresholds:
       completeness_min: 0.8
       consistency_min: 0.7
       validity_min: 0.9
       uniqueness_check: true
     
-  # Configuration generation
   config_generation:
     cleaning_config_template: true
     pipeline_config_update: true
     auto_detect_target: true
     suggest_improvements: true
 
-# =============================================================================
-# STEP 2: DATA CLEANING (Pipeline Behavior Only)
-# =============================================================================
-step_02_cleaning:
-  # Pipeline behavior settings (detailed column rules in cleaning_config_template.yaml)
+# Used by: 02_data_cleaning.py (behavior only, rules in cleaning_config_template.yaml)
+data_cleaning:
   execution:
     validate_before_cleaning: true
     backup_original_data: false
     generate_cleaning_report: true
     save_intermediate_steps: false
     
-  # Quality gates
   quality_gates:
     enabled: true
-    min_data_retention: 0.5  # Minimum fraction of data to retain
+    min_data_retention: 0.5
     max_missing_after_cleaning: 0.1
     require_target_column: true
     
-  # Output settings
   output:
     save_cleaned_data: true
     output_filename: "cleaned_data.csv"
     log_all_transformations: true
     generate_comparison_report: true
 
-# =============================================================================
-# STEP 3: ML ADVISORY & ASSUMPTIONS
-# =============================================================================
-step_03_advisory:
-  # Assumption testing configuration
+# Used by: 03_ml.py
+ml_advisory:
   assumption_testing:
     enabled: true
     normality_alpha: 0.05
@@ -119,14 +109,12 @@ step_03_advisory:
     verbose: true
     generate_recommendations: true
     
-  # Model recommendation settings
   model_recommendation:
     enabled: true
     include_ensemble_suggestions: true
     consider_dataset_size: true
     performance_vs_interpretability: "balanced"  # "performance", "interpretability", "balanced"
     
-  # Meta-learning integration
   meta_learning:
     enabled: true
     performance_database: "metadata/model_performance.db"
@@ -134,424 +122,43 @@ step_03_advisory:
     min_historical_samples: 5
     transfer_learning: true
     
-  # Fairness and bias analysis
   fairness:
     enabled: true
-    protected_attributes: []  # Auto-detect or specify
+    protected_attributes: []
     fairness_metrics: ["demographic_parity", "equalized_odds", "calibration"]
     bias_threshold: 0.1
     mitigation_strategies: ["reweighting", "preprocessing", "postprocessing"]
 
-# =============================================================================
-# STEP 4: MODEL TRAINING
-# =============================================================================
-step_04_training:
-  # Data splitting (maps to TrainerConfig)
-  data_splitting:
-    test_size: 0.2
-    validation_size: 0.1  # From training set (actual trainer default)
-    random_state: 42
-    
-  # Model selection and limits (maps to TrainerConfig)
-  model_selection:
-    max_models: 10
-    include_ensemble: true
-    include_advanced: true  # XGBoost, LightGBM, etc.
-    # include_deep_learning: false # FUTURE FEATURE - not implemented yet
-    
-  # Hyperparameter tuning (maps to TrainerConfig)
-  hyperparameter_tuning:
-    enabled: true
-    method: "random"  # "grid", "random", "none" (actual trainer options)
-    tuning_iterations: 50  # actual trainer parameter
-    tuning_cv_folds: 3     # actual trainer parameter
-    # max_iterations: 50      # FUTURE - not in current trainer
-    # timeout_per_model: 1800 # FUTURE - not in current trainer  
-    # early_stopping: true    # FUTURE - not in current trainer
-    
-  # Validation settings (maps to TrainerConfig)
-  validation:
-    cv_folds: 5
-    scoring_strategy: "comprehensive"  # "fast", "comprehensive"
-    
-  # Performance and resource settings (maps to TrainerConfig)
-  performance:
-    parallel_jobs: -1
-    max_training_time_minutes: 30  # actual trainer parameter
-    memory_limit_gb: null          # actual trainer parameter (optional)
-    # cpu_cores: 4               # FUTURE - not in current trainer
-    # max_training_time: 3600    # FUTURE - different from current implementation
-    # auto_skip_expensive: true  # FUTURE - not in current trainer
-  
-  # Encoding and preprocessing (maps to TrainerConfig)
-  preprocessing:
-    encoding_strategy: "onehot"   # "onehot", "label", "ordinal"
-    scaling_strategy: "standard"  # "standard", "minmax", "robust", "none"
-    
-  # Business features (maps to TrainerConfig)
-  business_features:
-    enable_business_features: true
-    feature_selection_enabled: true
-    business_kpi_tracking: true
-    business_rules_file: "config/business_rules.yaml"
-    business_kpis_file: "config/business_kpis.yaml"
-    
-  # Output and saving (maps to TrainerConfig)
-  output:
-    save_models: true
-    model_directory: "models"  # maps to model_dir
-    save_predictions: true
-    # save_feature_importance: true  # FUTURE - not in current trainer
-    # generate_training_report: true # FUTURE - not in current trainer
-    verbose: true
-
-# =============================================================================
-# STEP 5: MODEL EVALUATION
-# =============================================================================
-step_05_evaluation:
-  # Input/Output (maps to AnalysisConfig)
-  input_output:
-    models_dir: "models"
-    training_report_path: "training_report.json"
-    output_dir: "analysis_output"  # maps to output_dir
-    
-  # Analysis components (maps to AnalysisConfig)
-  analysis_types:
-    enable_shap: true
-    enable_learning_curves: true
-    enable_residual_analysis: true
-    enable_stability_analysis: true
-    enable_interpretability: true
-    enable_uncertainty_analysis: true  # actual evaluator parameter
-    
-  # Visualization settings (maps to AnalysisConfig)
-  visualization:
-    save_plots: true
-    plot_format: "html"  # "html", "png", "both"
-    plot_dpi: 300
-    figure_size: [12, 8]  # maps to figure_size tuple
-    
-  # Performance settings (maps to AnalysisConfig)
-  performance:
-    n_permutations: 50        # Number of permutations for feature importance
-    n_bootstrap_samples: 100  # Number of bootstrap samples for stability testing
-    max_shap_samples: 1000    # Max samples for SHAP analysis
-    n_models_to_evaluate: 3   # Number of top models to evaluate
-    
-  # Stability testing (maps to AnalysisConfig)
-  stability_testing:
-    noise_levels: [0.01, 0.05, 0.1, 0.2]      # actual evaluator parameter
-    dropout_rates: [0.05, 0.1, 0.2, 0.3]      # actual evaluator parameter
-    
-  # Logging (maps to AnalysisConfig)
-  logging:
-    verbose: true
-    log_level: "INFO"
-    
-  # FUTURE FEATURES - not in current evaluator
-  # evaluation_metrics:
-  #   classification: ["accuracy", "precision", "recall", "f1", "roc_auc"]
-  #   regression: ["mse", "rmse", "mae", "r2"]
-  #   custom_metrics: []
-  # reporting:
-  #   generate_unified_dashboard: true
-  #   automated_reports: true
-  #   export_formats: ["html", "pdf", "json"]
-  #   comparative_analysis: true
-  #   interactive_plots: true
-  # output:
-  #   evaluation_directory: "evaluation_results"
-  #   save_plots: true
-  #   save_metrics: true
-  #   generate_summary: true
-
-# =============================================================================
-# INFRASTRUCTURE & SYSTEM SETTINGS
-# =============================================================================
-infrastructure:
-  # Feature flags
-  feature_flags:
-    data_quality_v2: true
-    mlflow_tracking: true
-    plugin_system: true
-    business_alignment: true
-    metadata_tracking: true
-    lineage_tracking: true
-    enhanced_logging: true
-  
-  # MLflow integration
-  mlflow:
-    tracking_uri: "sqlite:///mlruns/mlflow.db"
-    experiment_name: "ds-autoadvisor-v2"
-    artifact_location: "./mlruns"
-    auto_log: true
-    log_system_metrics: true
-    log_artifacts: true
-  
-  # Logging configuration
-  logging:
-    level: "INFO"
-    structured: true
-    correlation_tracking: true
-    performance_metrics: true
-    log_file: "logs/pipeline_v2.log"
-    console_output: true
-    
-  # Plugin system
-  plugins:
-    enabled: true
-    plugin_dir: "plugins"
-    auto_discovery: true
-    validation_required: true
-    
-  # Metadata management
-  metadata:
-    enabled: true
-    store_type: "sqlite"
-    connection_string: "sqlite:///metadata/pipeline_metadata.db"
-    track_lineage: true
-    track_performance: true
-    retention_days: 90
-
-# =============================================================================
-# BUSINESS ALIGNMENT FEATURES
-# =============================================================================
-business_features:
-  # Feature selection with business rules
-  feature_selection:
-    enabled: true
-    methods:
-      statistical: true
-      ml_based: true
-      business_rules: true
-    
-    # Human oversight
-    human_oversight:
-      enabled: true
-      approval_required: true
-      review_stages: ["initial_selection", "ml_validation", "final_confirmation"]
-    
-    # Consistency and limits
-    consistency_strategy: "intersection"  # "intersection", "union", "weighted_voting"
-    min_feature_count: 5
-    max_feature_count: 50
-    business_rules_file: "config/business_rules.yaml"
-    
-  # KPI tracking
-  kpi_tracking:
-    enabled: true
-    config_file: "config/business_kpis.yaml"
-    
-    # Custom KPI definitions
-    custom_kpis:
-      revenue_impact:
-        weight: 0.4
-        calculation: "churn_prevention_value - false_positive_cost"
-      operational_efficiency:
-        weight: 0.3 
-        calculation: "model_accuracy * process_automation_score"
-      customer_satisfaction:
-        weight: 0.3
-        calculation: "customer_satisfaction_score"
-    
-    # ROI analysis
-    roi_analysis:
-      enabled: true
-      time_horizon_months: 12
-      discount_rate: 0.10
-      
-    # Correlation tracking
-    correlation_tracking:
-      enabled: true
-      threshold_strong: 0.7
-      threshold_moderate: 0.4
-
-# =============================================================================
-# WORKFLOW & EXECUTION SETTINGS
-# =============================================================================
-workflow:
-  # Pipeline stages
-  stages: 
-    - "discovery"
-    - "cleaning" 
-    - "advisory"
-    - "training"
-    - "evaluation"
-  
-  # Execution settings
-  execution:
-    parallel_execution: false
-    stage_dependencies: true
-    plugin_stages: ["feature_selection", "business_analysis"]
-    skip_on_failure: false
-    retry_attempts: 3
-    
-  # Error handling
-  error_handling:
-    stop_on_error: false
-    skip_failed_stages: true
-    recovery_strategies: true
-    generate_error_reports: true
-
-# =============================================================================
-# EXTENSIBILITY & ADVANCED FEATURES
-# =============================================================================
-extensibility:
-  # Plugin configuration
-  plugins:
-    feature_selection:
-      enabled: true
-      available_plugins: ["recursive_feature_elimination", "mutual_info", "lasso"]
-    sampling:
-      enabled: true
-      available_plugins: ["smote", "adasyn", "random_under", "tomek_links"]
-    deep_learning:
-      enabled: false
-      frameworks: ["tensorflow", "pytorch"]
-    domain_specific:
-      enabled: true
-      domains: ["finance", "healthcare", "marketing"]
-      
-  # Versioning system
-  versioning:
-    models:
-      enabled: true
-      storage_backend: "local"  # "local", "s3", "gcs"
-      retention_policy: "keep_best_5"
-      comparison_metrics: ["accuracy", "f1_score"]
-    reports:
-      enabled: true
-      version_on_config_change: true
-      archive_old_versions: true
-      
-  # Cloud execution (future)
-  cloud_execution:
-    enabled: false
-    provider: "aws"  # "aws", "gcp", "azure"
-    instance_type: "ml.m5.large"
-    max_instances: 4
-    auto_scaling: true
-    cost_limit_per_hour: 50.0
-
-# =============================================================================
-# STAGE TESTING CONFIGURATION (For 02_stage_testing.py)
-# =============================================================================
-stage_testing:
-  # Global testing settings
-  testing_mode: "comprehensive"  # "fast", "comprehensive", "custom"
-  output_dir: "pipeline_outputs"
-  save_intermediate_results: true
-  enable_stage_inspection: true
-  
-  # Cleaning stage testing
-  cleaning:
-    # Uses step_02_cleaning settings but with testing overrides
-    test_mode: true
-    verbose: true
-    backup_original_data: false
-    save_intermediate_steps: true
-    
-  # Advisory stage testing  
-  advisory:
-    # Uses step_03_advisory settings but with testing overrides
-    assumption_testing:
-      verbose: true
-      generate_recommendations: true
-      normality_alpha: 0.05
-      homo_alpha: 0.05
-      vif_threshold: 10.0
-      correlation_threshold: 0.95
-    model_recommendation:
-      enabled: true
-      include_ensemble_suggestions: true
-      
-  # Training stage testing
-  training:
-    # Override training settings for faster testing
-    max_models: 5  # Limited for speed
-    include_ensemble: true  # Disabled for speed
-    include_advanced: true  # Disabled for speed
-    enable_tuning: true  # Disabled for speed
-    test_size: 0.2
-    validation_size: 0.1
-    random_state: 42
-    verbose: true
-    save_models: true
-    parallel_jobs: -1
-    
-  # Evaluation stage testing
-  evaluation:
-    # Override evaluation settings for faster testing
-    enable_shap: true  # Disabled for speed
-    enable_learning_curves: true
-    enable_residual_analysis: true
-    enable_stability_analysis: true  # Disabled for speed
-    enable_interpretability: true  # Disabled for speed
-    enable_uncertainty_analysis: true # Disabled for speed
-    verbose: true
-    plot_format: "html"  # "html", "png", "both"
-    plot_dpi: 300
-    figure_size: [12, 8]
-    n_permutations: 20  # Reduced for speed
-    max_shap_samples: 500  # Reduced for speed
-    n_models_to_evaluate: 5  # More models for comprehensive testing
-
-# =============================================================================
-# LEGACY COMPATIBILITY (For existing scripts)
-# =============================================================================
-# These sections maintain compatibility with existing script expectations
-# Maps to actual TrainerConfig and AnalysisConfig parameters
-
-# profiling:
-  output_dir: "docs"
-  enable_advanced_stats: true
-  generate_data_lineage: true
-  quality_assessment: true
-
-data_cleaning:
-  output_path: "data/cleaned_data.csv"
-  log_file: "docs/cleaning_log.json"
-  remove_duplicates: true
-  outlier_removal: true
-  outlier_method: "iqr"
-
-ml_advisory:
-  assumption_testing:
-    normality_alpha: 0.05
-    vif_threshold: 10.0
-    correlation_threshold: 0.8
-    verbose: true
-
-# Maps directly to TrainerConfig parameters
+# Used by: 04_model_training.py (maps directly to TrainerConfig)
 model_training:
   # Data splitting
   test_size: 0.2
-  validation_size: 0.1  # Actual trainer default (not 0.2)
+  validation_size: 0.1
   random_state: 42
   
   # Model selection
-  max_models: 10
+  max_models: 4
   include_ensemble: true
   include_advanced: true
   
   # Hyperparameter tuning
   enable_tuning: true
-  tuning_method: "random"  # Actual trainer default (not "grid")
-  tuning_iterations: 50    # Actual trainer parameter
-  tuning_cv_folds: 3       # Actual trainer parameter
+  tuning_method: "grid"  # "grid", "random", "none"
+  tuning_iterations: 50
+  tuning_cv_folds: 3
   
   # Validation
   cv_folds: 5
-  scoring_strategy: "comprehensive"
+  scoring_strategy: "comprehensive"  # "fast", "comprehensive"
   
   # Performance
   parallel_jobs: -1
   max_training_time_minutes: 30
   memory_limit_gb: null
   
-  # Preprocessing
-  encoding_strategy: "onehot"
-  scaling_strategy: "standard"
+  # Preprocessing (already handled in cleaning_config_template.yaml)
+  encoding_strategy: "none"   # "onehot", "label", "ordinal", "none"
+  scaling_strategy: "none"    # "standard", "minmax", "robust", "none"
   
   # Business features
   enable_business_features: true
@@ -566,7 +173,7 @@ model_training:
   save_predictions: true
   verbose: true
 
-# Maps directly to AnalysisConfig parameters
+# Used by: 05_model_evaluation.py (maps directly to AnalysisConfig)
 model_evaluation:
   # Input/Output
   models_dir: "models"
@@ -583,7 +190,7 @@ model_evaluation:
   
   # Visualization
   save_plots: true
-  plot_format: "html"
+  plot_format: "html"  # "html", "png", "both"
   plot_dpi: 300
   figure_size: [12, 8]
   
@@ -591,12 +198,270 @@ model_evaluation:
   n_permutations: 50
   n_bootstrap_samples: 100
   max_shap_samples: 1000
+  n_models_to_evaluate: 3
   
-  # Stability
-  noise_levels: [0.01, 0.05, 0.1, 0.2]
-  dropout_rates: [0.05, 0.1, 0.2, 0.3]
+  # 🆕 ENHANCED SHAP FEATURES
+  feature_importance:
+    top_k_features: 10              # Number of top features to show
+    show_direction: true            # Show positive/negative impact with colors
+    add_log_odds_axis: true         # Add interpretable probability scale
+    permutation_error_bars: true    # Show statistical confidence intervals
+  
+  # 🆕 ENHANCED STABILITY ANALYSIS
+  stability_testing:
+    noise_levels: [0.01, 0.05, 0.1, 0.2]     # Noise robustness levels
+    dropout_rates: [0.05, 0.1, 0.2, 0.3]     # Feature dropout rates
+    random_state: 42                         # Reproducible results
   
   # Logging
   verbose: true
   log_level: "INFO"
+# =============================================================================
+# 🧪 SPECIALIZED TESTING CONFIGURATIONS
+# Used by: 02_stage_testing.py for faster pipeline testing
+# =============================================================================
+
+stage_testing:
+  testing_mode: "custom"  # "fast" or "custom" - controls which settings to use
+  output_dir: "pipeline_outputs"
+  save_intermediate_results: true
+  enable_stage_inspection: true
+  
+  # CUSTOM MODE SETTINGS - Complete configuration for all stages
+  # These settings are used when --mode custom is specified
+  
+  # Data Cleaning Stage Settings (custom mode)
+  cleaning:
+    verbose: true
+    backup_original_data: false
+    save_intermediate_steps: true
+    
+  # Advisory Stage Settings (custom mode)
+  advisory:
+    assumption_testing:
+      verbose: true
+      generate_recommendations: true
+      normality_alpha: 0.05
+      homo_alpha: 0.05
+      vif_threshold: 10.0
+      correlation_threshold: 0.95
+    model_recommendation:
+      enabled: true
+      include_ensemble_suggestions: true
+      
+  # Training Stage Settings (custom mode)
+  training:
+    # In custom mode, specify exact models to use (overrides max_models/include_* settings)
+    models_to_use: 
+      - "RandomForestClassifier"
+      - "GradientBoostingClassifier"
+      - "XGBClassifier"
+      - "LogisticRegression"
+  
+    max_models: 4                    # Number of models to train (used in fast mode)
+    include_ensemble: false          # Include ensemble methods
+    include_advanced: true           # Include advanced models (REQUIRED for XGBClassifier)
+    enable_tuning: true              # Enable hyperparameter tuning
+    test_size: 0.2                   # Train/test split
+    validation_size: 0.1             # Validation split
+    random_state: 42                 # Reproducibility
+    verbose: true                    # Verbose output
+    save_models: true                # Save trained models
+    parallel_jobs: -1                # Use all CPU cores
+    tuning_iterations: 20            # Hyperparameter tuning iterations
+    
+  # Evaluation Stage Settings (custom mode)
+  evaluation:
+    # Analysis Types
+    enable_shap: true                # SHAP analysis
+    enable_learning_curves: true     # Learning curve analysis
+    enable_residual_analysis: true   # Residual analysis
+    enable_stability_analysis: true  # Stability analysis
+    enable_interpretability: true    # Interpretability analysis
+    enable_uncertainty_analysis: true # Uncertainty analysis
+    
+    # Performance Settings
+    n_permutations: 10               # Permutation importance iterations
+    max_shap_samples: 200            # SHAP sample size
+    n_bootstrap_samples: 25          # Bootstrap samples for stability
+    n_models_to_evaluate: 3          # Number of models to evaluate
+    
+    # Visualization Settings
+    plot_format: "html"              # "html", "png", "both"
+    plot_dpi: 300                    # Plot resolution
+    figure_size: [12, 8]             # Plot dimensions
+    verbose: true                    # Verbose output
+    
+    # Enhanced Feature Importance (🆕)
+    feature_importance:
+      top_k_features: 8              # Number of top features to show
+      show_direction: true           # Show positive/negative impact
+      add_log_odds_axis: true        # Add log-odds scale
+      permutation_error_bars: true   # Show confidence intervals
+      
+    # Enhanced Stability Testing (🆕)
+    stability_testing:
+      noise_levels: [0.01, 0.05]     # Noise robustness levels to test
+      dropout_rates: [0.1, 0.2]      # Feature dropout rates to test
+      random_state: 42               # Reproducible stability tests
+
+# =============================================================================
+# 🔧 INFRASTRUCTURE & SYSTEM SETTINGS
+# =============================================================================
+
+infrastructure:
+  feature_flags:
+    data_quality_v2: true
+    mlflow_tracking: true
+    plugin_system: true
+    business_alignment: true
+    metadata_tracking: true
+    lineage_tracking: true
+    enhanced_logging: true
+  
+  mlflow:
+    tracking_uri: "sqlite:///mlruns/mlflow.db"
+    experiment_name: "ds-autoadvisor-v2"
+    artifact_location: "./mlruns"
+    auto_log: true
+    log_system_metrics: true
+    log_artifacts: true
+  
+  logging:
+    level: "INFO"
+    structured: true
+    correlation_tracking: true
+    performance_metrics: true
+    log_file: "logs/pipeline_v2.log"
+    console_output: true
+    
+  plugins:
+    enabled: true
+    plugin_dir: "plugins"
+    auto_discovery: true
+    validation_required: true
+    
+  metadata:
+    enabled: true
+    store_type: "sqlite"
+    connection_string: "sqlite:///metadata/pipeline_metadata.db"
+    track_lineage: true
+    track_performance: true
+    retention_days: 90
+
+# =============================================================================
+# 🎯 BUSINESS ALIGNMENT FEATURES
+# =============================================================================
+
+business_features:
+  feature_selection:
+    enabled: true
+    methods:
+      statistical: true
+      ml_based: true
+      business_rules: true
+    
+    human_oversight:
+      enabled: true
+      approval_required: true
+      review_stages: ["initial_selection", "ml_validation", "final_confirmation"]
+    
+    consistency_strategy: "intersection"  # "intersection", "union", "weighted_voting"
+    min_feature_count: 5
+    max_feature_count: 50
+    business_rules_file: "config/business_rules.yaml"
+    
+  kpi_tracking:
+    enabled: true
+    config_file: "config/business_kpis.yaml"
+    
+    custom_kpis:
+      revenue_impact:
+        weight: 0.4
+        calculation: "churn_prevention_value - false_positive_cost"
+      operational_efficiency:
+        weight: 0.3 
+        calculation: "model_accuracy * process_automation_score"
+      customer_satisfaction:
+        weight: 0.3
+        calculation: "customer_satisfaction_score"
+    
+    roi_analysis:
+      enabled: true
+      time_horizon_months: 12
+      discount_rate: 0.10
+      
+    correlation_tracking:
+      enabled: true
+      threshold_strong: 0.7
+      threshold_moderate: 0.4
+
+# =============================================================================
+# ⚙️ WORKFLOW & EXECUTION SETTINGS
+# =============================================================================
+
+workflow:
+  stages: 
+    - "discovery"
+    - "cleaning" 
+    - "advisory"
+    - "training"
+    - "evaluation"
+  
+  execution:
+    parallel_execution: false
+    stage_dependencies: true
+    plugin_stages: ["feature_selection", "business_analysis"]
+    skip_on_failure: false
+    retry_attempts: 3
+    
+  error_handling:
+    stop_on_error: false
+    skip_failed_stages: true
+    recovery_strategies: true
+    generate_error_reports: true
+
+# =============================================================================
+# 🚀 FUTURE EXTENSIONS & ADVANCED FEATURES
+# These are not yet implemented but reserved for future development
+# =============================================================================
+
+future_extensions:
+  deep_learning:
+    enabled: false
+    frameworks: ["tensorflow", "pytorch"]
+    note: "FUTURE FEATURE - Not yet implemented"
+    
+  cloud_execution:
+    enabled: false
+    provider: "aws"  # "aws", "gcp", "azure"
+    instance_type: "ml.m5.large"
+    max_instances: 4
+    auto_scaling: true
+    cost_limit_per_hour: 50.0
+    note: "FUTURE FEATURE - Not yet implemented"
+    
+  advanced_plugins:
+    sampling:
+      enabled: false
+      available_plugins: ["smote", "adasyn", "random_under", "tomek_links"]
+      note: "FUTURE FEATURE - Basic plugins available, advanced features planned"
+    
+    domain_specific:
+      enabled: false
+      domains: ["finance", "healthcare", "marketing"]
+      note: "FUTURE FEATURE - Planned for v3.0"
+      
+  versioning:
+    models:
+      enabled: false
+      storage_backend: "local"
+      retention_policy: "keep_best_5"
+      comparison_metrics: ["accuracy", "f1_score"]
+      note: "FUTURE FEATURE - Basic model saving available, versioning planned"
+    reports:
+      enabled: false
+      version_on_config_change: true
+      archive_old_versions: true
+      note: "FUTURE FEATURE - Planned for v2.5"
 

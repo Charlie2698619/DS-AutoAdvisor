@@ -13,36 +13,71 @@ warnings.filterwarnings('ignore')
 
 @dataclass
 class AssumptionConfig:
-    """Type-safe configuration for assumption testing"""
+    """Type-safe configuration for assumption testing - ALL values loaded from YAML"""
     # Normality testing
-    normality_alpha: float = 0.05
-    normality_max_sample: int = 5000
-    normality_method: str = "shapiro"  # "shapiro", "anderson", "jarque_bera"
+    normality_alpha: float
+    normality_max_sample: int
+    normality_method: str
     
     # Homoscedasticity  
-    homo_alpha: float = 0.05
-    homo_method: str = "breusch_pagan"  # "breusch_pagan", "white"
+    homo_alpha: float
+    homo_method: str
     
     # Multicollinearity
-    vif_threshold: float = 10.0 
-    correlation_threshold: float = 0.95
+    vif_threshold: float
+    correlation_threshold: float
     
     # Class balance
-    imbalance_threshold: float = 0.9
-    min_class_size: int = 30
+    imbalance_threshold: float
+    min_class_size: int
     
     # New assumptions
-    linearity_alpha: float = 0.05
-    independence_alpha: float = 0.05
+    linearity_alpha: float
+    independence_alpha: float
     
     # Scalability
-    chunk_size: Optional[int] = None
-    enable_sampling: bool = True
-    max_features_vif: int = 50  # Limit VIF calculation for performance
+    chunk_size: Optional[int]
+    enable_sampling: bool
+    max_features_vif: int
     
     # Output options
-    verbose: bool = True
-    generate_recommendations: bool = True 
+    verbose: bool
+    generate_recommendations: bool
+    
+    @classmethod
+    def from_yaml_config(cls, config_dict: Dict[str, Any]) -> 'AssumptionConfig':
+        """Create AssumptionConfig from YAML configuration dictionary"""
+        return cls(
+            # Normality testing
+            normality_alpha=config_dict.get('normality_alpha', 0.05),
+            normality_max_sample=config_dict.get('normality_max_sample', 5000),
+            normality_method=config_dict.get('normality_method', 'shapiro'),
+            
+            # Homoscedasticity  
+            homo_alpha=config_dict.get('homo_alpha', 0.05),
+            homo_method=config_dict.get('homo_method', 'breusch_pagan'),
+            
+            # Multicollinearity
+            vif_threshold=config_dict.get('vif_threshold', 10.0),
+            correlation_threshold=config_dict.get('correlation_threshold', 0.95),
+            
+            # Class balance
+            imbalance_threshold=config_dict.get('imbalance_threshold', 0.9),
+            min_class_size=config_dict.get('min_class_size', 30),
+            
+            # New assumptions
+            linearity_alpha=config_dict.get('linearity_alpha', 0.05),
+            independence_alpha=config_dict.get('independence_alpha', 0.05),
+            
+            # Scalability
+            chunk_size=config_dict.get('chunk_size', None),
+            enable_sampling=config_dict.get('enable_sampling', True),
+            max_features_vif=config_dict.get('max_features_vif', 50),
+            
+            # Output options
+            verbose=config_dict.get('verbose', True),
+            generate_recommendations=config_dict.get('generate_recommendations', True)
+        ) 
 
 class EnhancedAssumptionChecker:
     """Enhanced assumption checker with better scalability and features"""

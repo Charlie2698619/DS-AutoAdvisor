@@ -1,968 +1,551 @@
 #!/usr/bin/env python3
 """
-🚀 DS-AutoAdvisor: Step 3 - Full Production Pipeline
-================================================
+🚀 DS-AutoAdvisor: Step 3 - Simplified Production Pipeline
+========================================================
+
+SIMPLIFIED PURPOSE:
+Takes validated results from Step 2 and generates production-ready artifacts
+without re-running the entire ML pipeline.
 
 WHAT IT DOES:
-Executes the complete ML pipeline in production mode using optimized configurations
-from data discovery and validated stage testing. Full feature set enabled.
+✅ Loads best models from Step 2
+✅ Generates deployment packages
+✅ Creates serving scripts and documentation
+✅ Packages everything for handoff
 
 WHEN TO USE:
-- After completing data discovery (Step 1) and stage testing (Step 2)
-- For production model training and deployment
-- When you need complete analysis with all features enabled
-- For final model selection and comprehensive evaluation
+- After completing Stage 2 testing
+- To package models for deployment
+- To create handoff documentation
+- For final deliverables
 
 HOW TO USE:
-Production run with latest discovery:
-    python 03_full_pipeline.py
+Auto-detect latest Stage 2:
+    python 03_simplified_production.py
 
-Use specific discovery results:
-    python 03_full_pipeline.py --discovery-dir pipeline_outputs/01_discovery_dataset_20250804_143022
+Use specific Stage 2 results:
+    python 03_simplified_production.py --stage2-dir pipeline_outputs/02_stage_testing_custom_20250811_113710
 
-Custom configuration:
-    python 03_full_pipeline.py --config config/production_config.yaml
+With MLflow tracking:
+    python 03_simplified_production.py --enable-mlflow
 
-High-performance mode:
-    python 03_full_pipeline.py --mode production --enable-all
-
-PIPELINE STAGES:
-1. Data Loading & Validation
-2. Advanced Data Cleaning  
-3. ML Advisory & Model Selection
-4. Comprehensive Model Training
-5. Deep Model Evaluation
-6. Model Deployment Preparation
-
-PRODUCTION FEATURES:
-✅ Full hyperparameter tuning
-✅ Ensemble model training
-✅ Advanced evaluation metrics
-✅ SHAP interpretability analysis
-✅ Learning curve analysis
-✅ Model stability testing
-✅ Deployment artifacts generation
-✅ Comprehensive reporting
+STAGES (Simplified):
+1. Results Validation & Loading
+2. Model Packaging & Optimization  
+3. Deployment Artifacts Generation
 
 OUTPUTS:
-✅ Production-ready cleaned dataset
-✅ Optimized trained models with artifacts
-✅ Comprehensive evaluation reports
-✅ Model interpretability analysis
-✅ Deployment configuration files
-✅ Complete audit trail and logs
-
-INTERACTIVE FEATURES:
-- Pipeline checkpoint reviews
-- Configuration validation
-- Performance monitoring
-- Error recovery options
-- Progress tracking with ETA
-
-NEXT STEP:
-Deploy models using generated artifacts and configuration files.
+✅ Production model packages
+✅ Serving scripts and API templates
+✅ Deployment configurations
+✅ Executive summary reports
+✅ Maintenance documentation
 """
 
-import sys
-import os
-import pandas as pd
-import numpy as np
-import json
-import yaml
+import sys, os, argparse, time, warnings, json, yaml, traceback, shutil
 from pathlib import Path
 from datetime import datetime, timedelta
 from typing import Dict, Any, List, Optional, Tuple
-import argparse
-import time
-import warnings
+import pandas as pd
+import numpy as np
+
+# Add config manager import
+from utils.simplified_config_manager import SimplifiedConfigManager
+
+# Optional MLflow integration
+try:
+    from src.infrastructure.mlflow_integration import MLflowManager, MLflowConfig
+    HAS_MLFLOW = True
+except Exception:
+    HAS_MLFLOW = False
 
 # Add project root to path
 project_root = Path(__file__).parent
 sys.path.append(str(project_root))
 sys.path.append(str(project_root / "src"))
 
-class ProductionPipeline:
-    """Complete production ML pipeline execution"""
+
+class SimplifiedProductionPipeline:
+    """Simplified production pipeline focused on artifact generation"""
     
-    def __init__(self, discovery_dir: str = None, config_path: str = None, 
-                 output_base: str = "pipeline_outputs", mode: str = "production"):
-        """Initialize production pipeline"""
-        self.mode = mode
+    def __init__(self, stage2_results_dir: str = None, run_mode: str = "custom", 
+                 force_enable_mlflow: bool = False, output_base: str = "pipeline_outputs"):
         self.output_base = Path(output_base)
-        self.discovery_dir = Path(discovery_dir) if discovery_dir else self._find_latest_discovery()
+        self.stage2_dir = self._find_latest_stage2() if not stage2_results_dir else Path(stage2_results_dir)
+        self.run_mode = run_mode.lower()
         
-        # Create organized output structure
-        self.production_outputs = self._create_output_structure()
+        if self.run_mode not in ["fast", "custom"]:
+            print(f"⚠️ Invalid run_mode '{self.run_mode}' defaulting to 'custom'")
+            self.run_mode = "custom"
         
-        # Load configuration and discovery results
-        self.config = self._load_configuration(config_path)
-        self.discovery_summary = self._load_discovery_results()
+        # Load configuration
+        self.config_manager = SimplifiedConfigManager("config/unified_config_v3.yaml")
+        self.config = self.config_manager.config
         
-        # Pipeline execution state
-        self.pipeline_state = {
-            'current_stage': None,
-            'completed_stages': [],
-            'failed_stages': [],
-            'stage_results': {},
-            'start_time': datetime.now(),
-            'checkpoint_data': {}
-        }
-        
-        # Performance monitoring
-        self.performance_tracker = {
-            'stage_times': {},
-            'memory_usage': {},
-            'errors': [],
-            'warnings': []
-        }
-        
-        print(f"🚀 Production Pipeline Initialized")
-        print(f"📁 Output directory: {self.production_outputs['base']}")
-        print(f"⚙️ Mode: {mode}")
-        if self.discovery_dir:
-            print(f"🔍 Using discovery: {self.discovery_dir}")
-    
-    def _find_latest_discovery(self) -> Optional[Path]:
-        """Find the latest discovery directory"""
-        discovery_dirs = list(self.output_base.glob("01_discovery_*"))
-        if discovery_dirs:
-            latest = max(discovery_dirs, key=lambda p: p.stat().st_mtime)
-            print(f"🔍 Using latest discovery: {latest}")
-            return latest
-        else:
-            print("❌ No discovery directory found. Run 01_data_discovery.py first.")
-            return None
-    
-    def _create_output_structure(self) -> Dict[str, Path]:
-        """Create organized production output structure"""
+        # Simplified output structure
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        
-        outputs = {
-            'base': self.output_base / f"03_production_{timestamp}",
-            'data': self.output_base / f"03_production_{timestamp}" / "data",
-            'models': self.output_base / f"03_production_{timestamp}" / "models",
-            'evaluations': self.output_base / f"03_production_{timestamp}" / "evaluations",
-            'reports': self.output_base / f"03_production_{timestamp}" / "reports",
-            'logs': self.output_base / f"03_production_{timestamp}" / "logs",
-            'artifacts': self.output_base / f"03_production_{timestamp}" / "artifacts",
-            'deployment': self.output_base / f"03_production_{timestamp}" / "deployment"
+        self.outputs = {
+            'base': self.output_base / f"03_production_artifacts_{timestamp}",
+            'models': self.output_base / f"03_production_artifacts_{timestamp}/models",
+            'deployment': self.output_base / f"03_production_artifacts_{timestamp}/deployment", 
+            'docs': self.output_base / f"03_production_artifacts_{timestamp}/documentation",
+            'reports': self.output_base / f"03_production_artifacts_{timestamp}/reports"
         }
         
-        # Create all directories
-        for output_dir in outputs.values():
+        for output_dir in self.outputs.values():
             output_dir.mkdir(parents=True, exist_ok=True)
         
-        return outputs
-    
-    def _load_discovery_results(self) -> Dict[str, Any]:
-        """Load results from data discovery stage"""
-        if not self.discovery_dir or not self.discovery_dir.exists():
-            print("⚠️ Discovery directory not found, using defaults")
-            return {}
+        # Initialize MLflow if enabled
+        infra_cfg = self.config_manager.get_infrastructure_config() or {}
+        feature_flags = (infra_cfg.get('feature_flags') or {})
+        print(f"🔍 Debug: MLflow feature flag = {feature_flags.get('mlflow_tracking', False)}")
+        print(f"🔍 Debug: Force enable MLflow = {force_enable_mlflow}")
+        print(f"🔍 Debug: Has MLflow = {HAS_MLFLOW}")
         
-        summary_file = self.discovery_dir / "discovery_summary.json"
-        if summary_file.exists():
-            with open(summary_file, 'r') as f:
-                return json.load(f)
-        return {}
-    
-    def _load_configuration(self, config_path: str = None) -> Dict[str, Any]:
-        """Load pipeline configuration"""
-        # Priority: custom config > discovery config > default config
+        self.mlflow_enabled = (feature_flags.get('mlflow_tracking', False) or force_enable_mlflow) and HAS_MLFLOW
+        self.mlflow_manager = None
         
-        if config_path and Path(config_path).exists():
-            print(f"⚙️ Loading custom config: {config_path}")
-            with open(config_path, 'r') as f:
-                return yaml.safe_load(f)
+        print(f"🔍 Debug: MLflow enabled = {self.mlflow_enabled}")
         
-        # Try discovery-generated config
-        if self.discovery_summary and 'generated_files' in self.discovery_summary:
-            config_path = self.discovery_summary['generated_files'].get('pipeline_config')
-            if config_path and Path(config_path).exists():
-                print(f"⚙️ Loading discovery config: {config_path}")
-                with open(config_path, 'r') as f:
-                    return yaml.safe_load(f)
+        if self.mlflow_enabled:
+            mlflow_section = infra_cfg.get('mlflow', {})
+            print(f"🔍 Debug: MLflow config section = {mlflow_section}")
+            
+            try:
+                # Use your updated config values
+                tracking_uri = mlflow_section.get('tracking_uri', 'file:///mnt/c/Users/tony3/Desktop/tidytuesday/ds-autoadvisor/mlruns')
+                experiment_name = mlflow_section.get('experiment_name', 'ds-autoadvisor-v3')
+                artifact_location = mlflow_section.get('artifact_location', './mlruns')
+                auto_log = mlflow_section.get('auto_log', True)
+                log_system_metrics = mlflow_section.get('log_system_metrics', True)
+                log_artifacts = mlflow_section.get('log_artifacts', True)
+                
+                ml_cfg = MLflowConfig(
+                    tracking_uri=tracking_uri,
+                    experiment_name=experiment_name,
+                    artifact_location=artifact_location,
+                    auto_log=auto_log,
+                    log_system_metrics=log_system_metrics,
+                    log_artifacts=log_artifacts
+                )
+                self.mlflow_manager = MLflowManager(ml_cfg)
+                print(f"🧪 MLflow tracking enabled for production artifacts")
+                print(f"   📊 Tracking URI: {tracking_uri}")
+                print(f"   🎯 Experiment: {experiment_name}")
+                print(f"   📂 Artifacts: {artifact_location}")
+            except Exception as e:
+                print(f"⚠️ Failed to initialize MLflow: {e}")
+                import traceback
+                traceback.print_exc()
+                self.mlflow_enabled = False
         
-        # Fallback to default config
-        default_config_path = project_root / "config" / "unified_config_v2.yaml"
-        if default_config_path.exists():
-            print(f"⚙️ Loading default config: {default_config_path}")
-            with open(default_config_path, 'r') as f:
-                return yaml.safe_load(f)
-        
-        # Create minimal production config
-        print("⚙️ Creating minimal production config")
-        return self._create_production_config()
-    
-    def _create_production_config(self) -> Dict[str, Any]:
-        """Create production configuration"""
-        return {
-            'global': {
-                'data_input_path': 'data/telco_churn_data.csv',
-                'target_column': 'Churn',
-                'csv_delimiter': ',',
-                'csv_encoding': 'utf-8',
-                'output_base_dir': str(self.output_base),
-                'production_mode': True
-            },
-            'cleaning': {
-                'remove_duplicates': True,
-                'outlier_removal': True,
-                'outlier_method': 'iqr',
-                'handle_missing': True,
-                'normalize_text': True,
-                'validate_data': True
-            },
-            'training': {
-                'test_size': 0.2,
-                'validation_size': 0.2,
-                'random_state': 42,
-                'enable_tuning': True,
-                'max_models': 20,
-                'include_ensemble': True,
-                'include_advanced': True,
-                'enable_early_stopping': True,
-                'n_jobs': -1
-            },
-            'evaluation': {
-                'enable_shap': True,
-                'enable_learning_curves': True,
-                'enable_residual_analysis': True,
-                'enable_stability_analysis': True,
-                'enable_interpretability': True,
-                'cross_validation_folds': 5
-            }
+        # Pipeline state
+        self.execution_state = {
+            'start_time': datetime.now(),
+            'completed_stages': [],
+            'failed_stages': [],
+            'stage_results': {}
         }
+        
+        print(f"🚀 Simplified Production Pipeline Initialized")
+        print(f"📁 Output directory: {self.outputs['base']}")
+        print(f"🔍 Using Stage 2 results: {self.stage2_dir}")
+        print(f"⚙️ Run mode: {self.run_mode}")
     
-    def run_production_pipeline(self) -> bool:
-        """Execute the complete production pipeline"""
+    def _find_latest_stage2(self) -> Optional[Path]:
+        """Find the latest Stage 2 results directory"""
+        stage2_dirs = list(self.output_base.glob("02_stage_testing_*"))
+        if stage2_dirs:
+            latest = max(stage2_dirs, key=lambda p: p.stat().st_mtime)
+            print(f"🔍 Auto-detected latest Stage 2: {latest}")
+            return latest
+        else:
+            print("❌ No Stage 2 directory found. Run 02_stage_testing.py first.")
+            return None
+    
+    def run_simplified_pipeline(self) -> bool:
+        """Execute simplified production pipeline"""
         try:
             print("\n" + "="*80)
-            print("🚀 STARTING PRODUCTION PIPELINE")
+            print("🚀 STARTING SIMPLIFIED PRODUCTION PIPELINE")
             print("="*80)
             
-            # Pipeline stages
             stages = [
-                ("data_loading", "📊 Data Loading & Validation"),
-                ("data_cleaning", "🧹 Advanced Data Cleaning"),
-                ("ml_advisory", "🤖 ML Advisory & Model Selection"),
-                ("model_training", "🏋️ Comprehensive Model Training"),
-                ("model_evaluation", "📈 Deep Model Evaluation"),
-                ("deployment_prep", "🚀 Deployment Preparation")
+                ("validate_stage2", "📊 Validate Stage 2 Results"),
+                ("package_models", "📦 Package Best Models"),
+                ("generate_deployment", "🚀 Generate Deployment Assets"),
+                ("create_documentation", "📖 Create Documentation Package")
             ]
             
-            total_stages = len(stages)
+            if self.mlflow_enabled and self.mlflow_manager:
+                try:
+                    self.current_run_id = self.mlflow_manager.start_pipeline_run(
+                        self.config, 
+                        run_name=f"production-artifacts-{self.run_mode}-{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+                    )
+                    print(f"✅ MLflow run started: {self.current_run_id}")
+                except Exception as e:
+                    print(f"⚠️ MLflow start failed: {e}")
+                    self.mlflow_enabled = False
             
             for i, (stage_id, stage_name) in enumerate(stages, 1):
-                print(f"\n{'='*20} STAGE {i}/{total_stages}: {stage_name} {'='*20}")
+                print(f"\n{'='*20} STAGE {i}/{len(stages)}: {stage_name} {'='*20}")
                 
-                self.pipeline_state['current_stage'] = stage_id
                 stage_start = datetime.now()
                 
-                # Execute stage
-                if stage_id == "data_loading":
-                    success = self._execute_data_loading()
-                elif stage_id == "data_cleaning":
-                    success = self._execute_data_cleaning()
-                elif stage_id == "ml_advisory":
-                    success = self._execute_ml_advisory()
-                elif stage_id == "model_training":
-                    success = self._execute_model_training()
-                elif stage_id == "model_evaluation":
-                    success = self._execute_model_evaluation()
-                elif stage_id == "deployment_prep":
-                    success = self._execute_deployment_prep()
+                if stage_id == "validate_stage2":
+                    success = self._validate_stage2_results()
+                elif stage_id == "package_models":
+                    success = self._package_best_models()
+                elif stage_id == "generate_deployment":
+                    success = self._generate_deployment_assets()
+                elif stage_id == "create_documentation":
+                    success = self._create_documentation_package()
                 else:
                     print(f"❌ Unknown stage: {stage_id}")
                     success = False
                 
-                # Track performance
                 stage_time = (datetime.now() - stage_start).total_seconds()
-                self.performance_tracker['stage_times'][stage_id] = stage_time
+                
+                # Log stage metrics to MLflow
+                if self.mlflow_enabled and self.mlflow_manager:
+                    try:
+                        import mlflow
+                        mlflow.log_metric(f"stage_{stage_id}_duration_seconds", stage_time)
+                        mlflow.log_metric(f"stage_{stage_id}_success", 1 if success else 0)
+                    except Exception as e:
+                        print(f"⚠️ MLflow stage logging failed: {e}")
                 
                 if success:
-                    self.pipeline_state['completed_stages'].append(stage_id)
+                    self.execution_state['completed_stages'].append(stage_id)
                     print(f"✅ Stage completed successfully ({stage_time:.2f}s)")
-                    
-                    # Save checkpoint
-                    self._save_checkpoint(stage_id)
-                    
-                    # Stage review opportunity
-                    if self.mode == "interactive" and i < total_stages:
-                        if not self._stage_review_checkpoint(stage_id):
-                            print("🛑 Pipeline stopped by user")
-                            return False
                 else:
-                    self.pipeline_state['failed_stages'].append(stage_id)
+                    self.execution_state['failed_stages'].append(stage_id)
                     print(f"❌ Stage failed ({stage_time:.2f}s)")
-                    
-                    if not self._handle_stage_failure(stage_id):
-                        return False
+                    return False
             
-            # Pipeline completion
-            return self._finalize_pipeline()
+            return self._finalize_artifacts()
             
         except KeyboardInterrupt:
             print("\n🛑 Pipeline interrupted by user")
             return False
         except Exception as e:
             print(f"\n❌ Pipeline crashed: {e}")
-            import traceback
             traceback.print_exc()
             return False
     
-    def _execute_data_loading(self) -> bool:
-        """Execute data loading and validation stage"""
+    def _validate_stage2_results(self) -> bool:
+        """Validate that Stage 2 completed successfully"""
         try:
-            print("📊 Loading and validating data...")
+            print("📊 Validating Stage 2 results...")
             
-            # Get data path
-            data_path = self.config['global']['data_input_path']
-            if not Path(data_path).exists():
-                print(f"❌ Data file not found: {data_path}")
+            if not self.stage2_dir or not self.stage2_dir.exists():
+                print("❌ Stage 2 directory not found")
                 return False
             
-            # Load data
-            print(f"📁 Loading data from: {data_path}")
-            df = pd.read_csv(
-                data_path,
-                delimiter=self.config['global'].get('csv_delimiter', ','),
-                encoding=self.config['global'].get('csv_encoding', 'utf-8')
-            )
-            
-            target_column = self.config['global']['target_column']
-            
-            print(f"✅ Data loaded successfully")
-            print(f"📊 Data shape: {df.shape}")
-            print(f"🎯 Target column: {target_column}")
-            
-            # Validate data
-            validation_results = self._validate_data(df, target_column)
-            
-            # Save validated data
-            validated_data_path = self.production_outputs['data'] / "validated_data.csv"
-            df.to_csv(validated_data_path, index=False)
-            
-            # Store results
-            self.pipeline_state['stage_results']['data_loading'] = {
-                'data_path': str(validated_data_path),
-                'shape': df.shape,
-                'target_column': target_column,
-                'validation_results': validation_results,
-                'success': True
-            }
-            
-            return True
-            
-        except Exception as e:
-            print(f"❌ Data loading failed: {e}")
-            return False
-    
-    def _validate_data(self, df: pd.DataFrame, target_column: str) -> Dict[str, Any]:
-        """Validate loaded data"""
-        validation = {
-            'shape_valid': df.shape[0] > 0 and df.shape[1] > 1,
-            'target_exists': target_column in df.columns,
-            'missing_data': df.isnull().sum().sum(),
-            'duplicate_rows': df.duplicated().sum(),
-            'data_types': df.dtypes.to_dict()
-        }
-        
-        # Check target column
-        if validation['target_exists']:
-            y = df[target_column]
-            validation['target_info'] = {
-                'unique_values': y.nunique(),
-                'missing_target': y.isnull().sum(),
-                'target_distribution': y.value_counts().to_dict()
-            }
-        
-        # Print validation summary
-        print(f"✅ Data validation:")
-        print(f"   Shape valid: {validation['shape_valid']}")
-        print(f"   Target exists: {validation['target_exists']}")
-        print(f"   Missing data: {validation['missing_data']:,} cells")
-        print(f"   Duplicate rows: {validation['duplicate_rows']:,}")
-        
-        if validation['target_exists']:
-            target_info = validation['target_info']
-            print(f"   Target unique values: {target_info['unique_values']}")
-            print(f"   Missing target values: {target_info['missing_target']}")
-        
-        return validation
-    
-    def _execute_data_cleaning(self) -> bool:
-        """Execute advanced data cleaning stage"""
-        try:
-            print("🧹 Executing advanced data cleaning...")
-            
-            # Get data from previous stage
-            data_path = self.pipeline_state['stage_results']['data_loading']['data_path']
-            
-            # Import cleaner
-            try:
-                sys.path.append(str(project_root / "src" / "2_data_cleaning"))
-                from data_cleaner import DataCleaner, CleaningConfig
-                
-                # Create production cleaning configuration
-                cleaned_data_path = self.production_outputs['data'] / "production_cleaned_data.csv"
-                cleaning_log_path = self.production_outputs['logs'] / "production_cleaning_log.json"
-                
-                # Get cleaning config from discovery if available
-                cleaning_config_path = None
-                if self.discovery_summary and 'generated_files' in self.discovery_summary:
-                    cleaning_config_path = self.discovery_summary['generated_files'].get('cleaning_config')
-                
-                cleaning_config = CleaningConfig(
-                    input_path=data_path,
-                    output_path=str(cleaned_data_path),
-                    log_path=str(cleaning_log_path),
-                    column_config_path=cleaning_config_path,
-                    verbose=True,
-                    # Production settings
-                    remove_duplicates=self.config['cleaning'].get('remove_duplicates', True),
-                    outlier_removal=self.config['cleaning'].get('outlier_removal', True),
-                    outlier_method=self.config['cleaning'].get('outlier_method', 'iqr'),
-                    handle_missing=self.config['cleaning'].get('handle_missing', True),
-                    normalize_text=self.config['cleaning'].get('normalize_text', True),
-                    validate_data=self.config['cleaning'].get('validate_data', True)
-                )
-                
-                print(f"⚙️ Production cleaning configuration:")
-                print(f"   Remove duplicates: {cleaning_config.remove_duplicates}")
-                print(f"   Outlier removal: {cleaning_config.outlier_removal}")
-                print(f"   Handle missing: {cleaning_config.handle_missing}")
-                print(f"   Normalize text: {cleaning_config.normalize_text}")
-                
-                # Execute cleaning
-                cleaner = DataCleaner(cleaning_config)
-                print("🔄 Running production data cleaning...")
-                
-                cleaned_df, cleaning_log = cleaner.clean()
-                
-                # Display results
-                initial_shape = cleaning_log.get('initial_shape', (0, 0))
-                final_shape = cleaning_log.get('final_shape', (0, 0))
-                processing_time = cleaning_log.get('processing_time', 0)
-                
-                print(f"✅ Production data cleaning completed!")
-                print(f"📊 Cleaning Results:")
-                print(f"   Original shape: {initial_shape}")
-                print(f"   Cleaned shape:  {final_shape}")
-                print(f"   Data retention: {final_shape[0]/initial_shape[0]*100:.1f}%")
-                print(f"   Processing time: {processing_time:.2f}s")
-                
-                # Show critical actions
-                actions = cleaning_log.get('actions', [])
-                print(f"   Actions performed: {len(actions)}")
-                
-                # Store results
-                self.pipeline_state['stage_results']['data_cleaning'] = {
-                    'cleaned_data_path': str(cleaned_data_path),
-                    'cleaning_log_path': str(cleaning_log_path),
-                    'initial_shape': initial_shape,
-                    'final_shape': final_shape,
-                    'data_retention': final_shape[0]/initial_shape[0] if initial_shape[0] > 0 else 0,
-                    'processing_time': processing_time,
-                    'actions_count': len(actions),
-                    'success': True
-                }
-                
-                return True
-                
-            except ImportError as e:
-                print(f"❌ Data cleaner not available: {e}")
+            # Look for training report
+            training_reports = list(self.stage2_dir.glob("**/training_report.json"))
+            if not training_reports:
+                print("❌ No training report found from Stage 2")
                 return False
-                
-        except Exception as e:
-            print(f"❌ Data cleaning failed: {e}")
-            return False
-    
-    def _execute_ml_advisory(self) -> bool:
-        """Execute ML advisory and model selection stage"""
-        try:
-            print("🤖 Executing ML advisory and model selection...")
             
-            # Get cleaned data
-            cleaned_data_path = self.pipeline_state['stage_results']['data_cleaning']['cleaned_data_path']
-            df = pd.read_csv(cleaned_data_path)
-            target_column = self.config['global']['target_column']
+            with open(training_reports[0], 'r') as f:
+                self.training_results = json.load(f)
             
-            print(f"📊 Advisory analysis on {df.shape[0]:,} samples, {df.shape[1]} features")
+            # Look for cleaned data
+            cleaned_data_files = list(self.stage2_dir.glob("**/cleaned_data.csv")) or \
+                               list(self.stage2_dir.glob("**/cleaned_data/*.csv"))
             
-            # Import advisory components
-            try:
-                sys.path.append(str(project_root / "src" / "advisor_3"))
-                from assumption_checker import EnhancedAssumptionChecker, AssumptionConfig
-                from model_recommender import recommend_model
-                
-                # Configure advisory
-                advisory_config = AssumptionConfig(
-                    output_dir=str(self.production_outputs['reports']),
-                    verbose=True,
-                    save_plots=True,
-                    enable_advanced_analysis=True
-                )
-                
-                # Prepare data
-                X = df.drop(columns=[target_column])
-                y = df[target_column]
-                
-                print("🔄 Running comprehensive ML assumptions analysis...")
-                
-                # Run assumption checking
-                checker = EnhancedAssumptionChecker(advisory_config)
-                assumptions_results = checker.check_all_assumptions(X, y, target_column)
-                
-                print("🔄 Generating comprehensive model recommendations...")
-                
-                # Get model recommendations
-                recommendations = recommend_model(
-                    df=df,
-                    target_column=target_column,
-                    assumptions_results=assumptions_results,
-                    mode="production"
-                )
-                
-                # Display results
-                passed_assumptions = sum(1 for result in assumptions_results.values() if result.get('passed', False))
-                total_assumptions = len(assumptions_results)
-                
-                print(f"✅ ML Advisory completed!")
-                print(f"📊 Advisory Results:")
-                print(f"   Assumptions analyzed: {total_assumptions}")
-                print(f"   Assumptions passed: {passed_assumptions}")
-                print(f"   Compliance rate: {passed_assumptions/total_assumptions*100:.1f}%")
-                
-                # Show top recommendations
-                if isinstance(recommendations, dict) and 'recommended_models' in recommendations:
-                    models = recommendations['recommended_models'][:10]
-                    print(f"\n🎯 Top Model Recommendations:")
-                    for i, model in enumerate(models, 1):
-                        model_name = model.get('name', 'Unknown')
-                        confidence = model.get('confidence', 0)
-                        print(f"   {i:2d}. {model_name} (confidence: {confidence:.3f})")
-                
-                # Save comprehensive advisory results
-                advisory_results = {
-                    'timestamp': datetime.now().isoformat(),
-                    'data_shape': df.shape,
-                    'target_column': target_column,
-                    'assumptions_results': assumptions_results,
-                    'model_recommendations': recommendations,
-                    'summary': {
-                        'assumptions_analyzed': total_assumptions,
-                        'assumptions_passed': passed_assumptions,
-                        'compliance_rate': passed_assumptions/total_assumptions if total_assumptions > 0 else 0,
-                        'recommended_models': [m.get('name', 'Unknown') for m in models] if 'models' in locals() else []
-                    }
-                }
-                
-                advisory_output_path = self.production_outputs['reports'] / "production_advisory_report.json"
-                with open(advisory_output_path, 'w') as f:
-                    json.dump(advisory_results, f, indent=2, default=str)
-                
-                # Store results
-                self.pipeline_state['stage_results']['ml_advisory'] = {
-                    'advisory_report_path': str(advisory_output_path),
-                    'assumptions_passed': passed_assumptions,
-                    'total_assumptions': total_assumptions,
-                    'compliance_rate': passed_assumptions/total_assumptions if total_assumptions > 0 else 0,
-                    'recommended_models': [m.get('name', 'Unknown') for m in models] if 'models' in locals() else [],
-                    'success': True
-                }
-                
-                return True
-                
-            except ImportError as e:
-                print(f"❌ Advisory components not available: {e}")
-                print("🔄 Using basic advisory fallback...")
-                return self._basic_advisory_fallback(df, target_column)
-                
-        except Exception as e:
-            print(f"❌ ML Advisory failed: {e}")
-            return False
-    
-    def _basic_advisory_fallback(self, df: pd.DataFrame, target_column: str) -> bool:
-        """Basic advisory fallback for production"""
-        try:
-            print("🔄 Running production-grade basic advisory...")
-            
-            # Enhanced basic analysis
-            y = df[target_column]
-            X = df.drop(columns=[target_column])
-            
-            # Determine problem type and complexity
-            if y.dtype in ['object', 'category'] or y.nunique() < 20:
-                problem_type = "classification"
-                n_classes = y.nunique()
-                print(f"📊 Problem: Classification ({n_classes} classes)")
-                
-                if n_classes == 2:
-                    recommended_models = [
-                        "LogisticRegression", "RandomForestClassifier", "GradientBoostingClassifier",
-                        "XGBClassifier", "LGBMClassifier", "CatBoostClassifier"
-                    ]
-                else:
-                    recommended_models = [
-                        "RandomForestClassifier", "GradientBoostingClassifier", "XGBClassifier",
-                        "LGBMClassifier", "CatBoostClassifier", "VotingClassifier"
-                    ]
+            if cleaned_data_files:
+                self.cleaned_data_path = cleaned_data_files[0]
+                print(f"✅ Found cleaned data: {self.cleaned_data_path}")
             else:
-                problem_type = "regression"
-                print(f"📊 Problem: Regression")
-                recommended_models = [
-                    "LinearRegression", "RandomForestRegressor", "GradientBoostingRegressor",
-                    "XGBRegressor", "LGBMRegressor", "CatBoostRegressor"
-                ]
+                print("⚠️ No cleaned data found, will use original data")
+                self.cleaned_data_path = None
             
-            # Enhanced feature analysis
-            numeric_features = X.select_dtypes(include=[np.number]).columns
-            categorical_features = X.select_dtypes(include=['object', 'category']).columns
+            # Look for model files
+            model_files = list(self.stage2_dir.glob("**/*.pkl"))
+            self.available_models = model_files
             
-            feature_analysis = {
-                'total_features': len(X.columns),
-                'numeric_features': len(numeric_features),
-                'categorical_features': len(categorical_features),
-                'missing_values': int(X.isnull().sum().sum()),
-                'high_cardinality_features': [col for col in categorical_features if X[col].nunique() > 50]
-            }
+            models_count = len(self.training_results.get('model_rankings', []))
+            files_count = len(model_files)
             
-            print(f"📊 Advanced Feature Analysis:")
-            print(f"   Total features: {feature_analysis['total_features']}")
-            print(f"   Numeric features: {feature_analysis['numeric_features']}")
-            print(f"   Categorical features: {feature_analysis['categorical_features']}")
-            print(f"   High cardinality features: {len(feature_analysis['high_cardinality_features'])}")
+            print(f"✅ Stage 2 validation successful")
+            print(f"   📊 Models in report: {models_count}")
+            print(f"   💾 Model files found: {files_count}")
+            print(f"   📁 Cleaned data available: {'Yes' if self.cleaned_data_path else 'No'}")
             
-            # Save enhanced advisory results
-            advisory_results = {
-                'timestamp': datetime.now().isoformat(),
-                'problem_type': problem_type,
-                'data_shape': df.shape,
-                'feature_analysis': feature_analysis,
-                'target_analysis': {
-                    'unique_values': int(y.nunique()),
-                    'missing_values': int(y.isnull().sum()),
-                    'distribution': y.value_counts().head(10).to_dict()
-                },
-                'recommended_models': recommended_models,
-                'model_selection_strategy': "gradient_boosting_preferred"
-            }
+            # Show recommended model
+            best_model = self.training_results.get('summary', {}).get('best_model', 'Unknown')
+            print(f"   🏆 Recommended model: {best_model}")
             
-            advisory_output_path = self.production_outputs['reports'] / "production_basic_advisory.json"
-            with open(advisory_output_path, 'w') as f:
-                json.dump(advisory_results, f, indent=2, default=str)
-            
-            print(f"\n🎯 Production Model Recommendations:")
-            for i, model in enumerate(recommended_models, 1):
-                print(f"   {i:2d}. {model}")
-            
-            # Store results
-            self.pipeline_state['stage_results']['ml_advisory'] = {
-                'advisory_report_path': str(advisory_output_path),
-                'problem_type': problem_type,
-                'recommended_models': recommended_models,
-                'feature_analysis': feature_analysis,
+            self.execution_state['stage_results']['validate_stage2'] = {
+                'training_report_path': str(training_reports[0]),
+                'models_count': models_count,
+                'model_files_count': files_count,
+                'cleaned_data_available': self.cleaned_data_path is not None,
                 'success': True
             }
             
             return True
             
         except Exception as e:
-            print(f"❌ Basic advisory failed: {e}")
+            print(f"❌ Stage 2 validation failed: {e}")
             return False
     
-    def _execute_model_training(self) -> bool:
-        """Execute comprehensive model training stage"""
+    def _package_best_models(self) -> bool:
+        """Package top 3 models for deployment"""
         try:
-            print("🏋️ Executing comprehensive model training...")
+            print("📦 Packaging best models for deployment...")
             
-            # Get cleaned data
-            cleaned_data_path = self.pipeline_state['stage_results']['data_cleaning']['cleaned_data_path']
-            df = pd.read_csv(cleaned_data_path)
-            target_column = self.config['global']['target_column']
+            # Get top 3 models from training results (using model_rankings)
+            model_rankings = self.training_results.get('model_rankings', [])[:3]
+            packaged_models = []
             
-            print(f"📊 Training on {df.shape[0]:,} samples, {df.shape[1]} features")
+            print(f"📦 Packaging top {len(model_rankings)} models...")
             
-            # Import trainer
-            try:
-                sys.path.append(str(project_root / "src" / "pipeline_4"))
-                from trainer import EnhancedModelTrainer, TrainerConfig
+            for i, model_ranking in enumerate(model_rankings, 1):
+                model_name = model_ranking.get('model', f'model_{i}')
                 
-                # Production training configuration
-                training_config = TrainerConfig(
-                    test_size=self.config['training'].get('test_size', 0.2),
-                    validation_size=self.config['training'].get('validation_size', 0.2),
-                    random_state=self.config['training'].get('random_state', 42),
-                    max_models=self.config['training'].get('max_models', 20),
-                    include_ensemble=self.config['training'].get('include_ensemble', True),
-                    include_advanced=self.config['training'].get('include_advanced', True),
-                    enable_tuning=self.config['training'].get('enable_tuning', True),
-                    enable_early_stopping=self.config['training'].get('enable_early_stopping', True),
-                    verbose=True,
-                    save_models=True,
-                    model_dir=str(self.production_outputs['models']),
-                    n_jobs=self.config['training'].get('n_jobs', -1)
-                )
+                # Find corresponding model file
+                model_file = None
+                for file_path in self.available_models:
+                    if model_name in str(file_path):
+                        model_file = file_path
+                        break
                 
-                print(f"⚙️ Production Training Configuration:")
-                print(f"   Max models: {training_config.max_models}")
-                print(f"   Hyperparameter tuning: {training_config.enable_tuning}")
-                print(f"   Ensemble models: {training_config.include_ensemble}")
-                print(f"   Advanced models: {training_config.include_advanced}")
-                print(f"   Early stopping: {training_config.enable_early_stopping}")
-                print(f"   Parallel jobs: {training_config.n_jobs}")
-                
-                # Initialize trainer
-                trainer = EnhancedModelTrainer(training_config)
-                
-                print("🔄 Starting comprehensive model training...")
-                start_time = time.time()
-                
-                # Train all models
-                training_results = trainer.train_all_models(df, target_column)
-                
-                training_time = time.time() - start_time
-                
-                if not training_results:
-                    print("❌ No models trained successfully")
-                    return False
-                
-                print(f"✅ Comprehensive model training completed!")
-                print(f"📊 Training Results:")
-                print(f"   Models trained: {len(training_results)}")
-                print(f"   Total training time: {training_time:.2f}s")
-                print(f"   Average time per model: {training_time/len(training_results):.2f}s")
-                
-                # Generate comprehensive training report
-                target_type = trainer.infer_target_type(df[target_column])
-                report_path = str(self.production_outputs['reports'] / "production_training_report.json")
-                training_report = trainer.generate_report(training_results, target_type, report_path)
-                
-                # Display top models
-                print(f"\n🏅 Top Model Performance:")
-                for i, result in enumerate(training_results[:10], 1):
-                    print(f"   {i:2d}. {result.model_name}: {result.cv_score:.4f} (±{result.cv_std:.4f})")
-                    print(f"       Training time: {result.training_time:.2f}s")
-                
-                # Show model artifacts
-                model_files = list(self.production_outputs['models'].glob("*.pkl"))
-                print(f"\n💾 Model Artifacts Generated: {len(model_files)}")
-                
-                # Store results
-                self.pipeline_state['stage_results']['model_training'] = {
-                    'training_report_path': report_path,
-                    'model_directory': str(self.production_outputs['models']),
-                    'models_trained': len(training_results),
-                    'total_training_time': training_time,
-                    'best_model': training_report['summary'].get('best_model', 'Unknown') if training_report and 'summary' in training_report else 'Unknown',
-                    'best_score': training_report['summary'].get('best_score', 0) if training_report and 'summary' in training_report else 0,
-                    'model_artifacts': len(model_files),
-                    'success': True
-                }
-                
-                return True
-                
-            except ImportError as e:
-                print(f"❌ Model trainer not available: {e}")
-                return False
-                
+                if model_file and model_file.exists():
+                    # Copy model to production directory
+                    production_model_path = self.outputs['models'] / f"{model_name}.pkl"
+                    shutil.copy2(model_file, production_model_path)
+                    
+                    # Get detailed results for this model
+                    detailed_results = self.training_results.get('detailed_results', {}).get(model_name, {})
+                    
+                    # Create model metadata
+                    model_metadata = {
+                        'name': model_name,
+                        'original_file': str(model_file),
+                        'production_file': str(production_model_path),
+                        'ranking': model_ranking,
+                        'detailed_performance': detailed_results,
+                        'packaging_timestamp': datetime.now().isoformat()
+                    }
+                    
+                    metadata_path = self.outputs['models'] / f"{model_name}_metadata.json"
+                    with open(metadata_path, 'w') as f:
+                        json.dump(model_metadata, f, indent=2, default=str)
+                    
+                    packaged_models.append({
+                        'name': model_name,
+                        'model_file': str(production_model_path),
+                        'metadata_file': str(metadata_path),
+                        'ranking': model_ranking,
+                        'performance': detailed_results
+                    })
+                    
+                    print(f"   ✅ Packaged: {model_name}")
+                else:
+                    print(f"   ⚠️ Model file not found for: {model_name}")
+            
+            # Create models index
+            models_index = {
+                'timestamp': datetime.now().isoformat(),
+                'total_models': len(packaged_models),
+                'models': packaged_models,
+                'recommended_model': packaged_models[0]['name'] if packaged_models else None
+            }
+            
+            index_path = self.outputs['models'] / "models_index.json"
+            with open(index_path, 'w') as f:
+                json.dump(models_index, f, indent=2, default=str)
+            
+            print(f"✅ Model packaging completed")
+            print(f"   📦 Packaged models: {len(packaged_models)}")
+            print(f"   🏆 Recommended model: {models_index['recommended_model']}")
+            print(f"   📋 Models index: {index_path}")
+            
+            # Log model metrics to MLflow
+            if self.mlflow_enabled and self.mlflow_manager:
+                try:
+                    import mlflow
+                    mlflow.log_metric("packaged_models_count", len(packaged_models))
+                    mlflow.log_param("recommended_model", models_index['recommended_model'])
+                    
+                    # Log performance metrics for each model
+                    for model in packaged_models:
+                        model_name = model['name']
+                        ranking = model.get('ranking', {})
+                        if 'primary_score' in ranking:
+                            mlflow.log_metric(f"{model_name}_accuracy", ranking['primary_score'])
+                        if 'training_time' in ranking:
+                            mlflow.log_metric(f"{model_name}_training_time", ranking['training_time'])
+                        if 'rank' in ranking:
+                            mlflow.log_metric(f"{model_name}_rank", ranking['rank'])
+                    
+                    print(f"   📊 MLflow: Logged {len(packaged_models)} model metrics")
+                except Exception as e:
+                    print(f"   ⚠️ MLflow model logging failed: {e}")
+            
+            self.execution_state['stage_results']['package_models'] = {
+                'packaged_count': len(packaged_models),
+                'recommended_model': models_index['recommended_model'],
+                'models_index_path': str(index_path),
+                'packaged_models': packaged_models,
+                'success': True
+            }
+            
+            return True
+            
         except Exception as e:
-            print(f"❌ Model training failed: {e}")
+            print(f"❌ Model packaging failed: {e}")
             return False
     
-    def _execute_model_evaluation(self) -> bool:
-        """Execute deep model evaluation stage"""
+    def _generate_deployment_assets(self) -> bool:
+        """Generate minimal deployment assets"""
         try:
-            print("📈 Executing deep model evaluation...")
+            print("🚀 Generating deployment assets...")
             
-            # Get training results
-            training_results = self.pipeline_state['stage_results']['model_training']
-            report_path = training_results['training_report_path']
-            
-            # Import evaluator
-            try:
-                sys.path.append(str(project_root / "src" / "pipeline_4"))
-                from evaluator import ModelAnalyzer, AnalysisConfig
-                
-                # Production evaluation configuration
-                eval_config = AnalysisConfig(
-                    training_report_path=Path(report_path),
-                    output_dir=self.production_outputs['evaluations'],
-                    enable_shap=self.config['evaluation'].get('enable_shap', True),
-                    enable_learning_curves=self.config['evaluation'].get('enable_learning_curves', True),
-                    enable_residual_analysis=self.config['evaluation'].get('enable_residual_analysis', True),
-                    enable_stability_analysis=self.config['evaluation'].get('enable_stability_analysis', True),
-                    enable_interpretability=self.config['evaluation'].get('enable_interpretability', True),
-                    cross_validation_folds=self.config['evaluation'].get('cross_validation_folds', 5),
-                    verbose=True
-                )
-                
-                print(f"⚙️ Production Evaluation Configuration:")
-                print(f"   SHAP analysis: {eval_config.enable_shap}")
-                print(f"   Learning curves: {eval_config.enable_learning_curves}")
-                print(f"   Residual analysis: {eval_config.enable_residual_analysis}")
-                print(f"   Stability analysis: {eval_config.enable_stability_analysis}")
-                print(f"   Interpretability: {eval_config.enable_interpretability}")
-                print(f"   CV folds: {eval_config.cross_validation_folds}")
-                
-                # Initialize analyzer
-                analyzer = ModelAnalyzer(eval_config)
-                
-                # Get test data
-                cleaned_data_path = self.pipeline_state['stage_results']['data_cleaning']['cleaned_data_path']
-                df = pd.read_csv(cleaned_data_path)
-                target_column = self.config['global']['target_column']
-                
-                X_test = df.drop(columns=[target_column])
-                y_test = df[target_column]
-                
-                print(f"📊 Evaluating on {X_test.shape[0]:,} samples")
-                print("🔄 Running comprehensive model evaluation...")
-                
-                start_time = time.time()
-                
-                # Run comprehensive evaluation
-                evaluation_results = analyzer.run_analysis(X_test, y_test)
-                
-                evaluation_time = time.time() - start_time
-                
-                print(f"✅ Deep model evaluation completed!")
-                print(f"📊 Evaluation Results:")
-                print(f"   Models evaluated: {len(evaluation_results)}")
-                print(f"   Evaluation time: {evaluation_time:.2f}s")
-                
-                # Display evaluation summary
-                if evaluation_results:
-                    print(f"\n📊 Model Performance Summary:")
-                    for model_name, results in list(evaluation_results.items())[:5]:
-                        if isinstance(results, dict) and 'metrics' in results:
-                            metrics = results['metrics']
-                            # Show key metrics
-                            key_metrics = ['accuracy', 'precision', 'recall', 'f1', 'auc', 'mse', 'rmse', 'r2']
-                            displayed_metrics = []
-                            for metric in key_metrics:
-                                if metric in metrics:
-                                    displayed_metrics.append(f"{metric}: {metrics[metric]:.4f}")
-                                    if len(displayed_metrics) >= 3:
-                                        break
-                            
-                            print(f"   {model_name}: {', '.join(displayed_metrics)}")
-                
-                # Count generated artifacts
-                eval_files = list(self.production_outputs['evaluations'].glob("*"))
-                print(f"\n📁 Evaluation Artifacts Generated: {len(eval_files)}")
-                
-                # Store results
-                self.pipeline_state['stage_results']['model_evaluation'] = {
-                    'evaluation_directory': str(self.production_outputs['evaluations']),
-                    'evaluation_results': evaluation_results,
-                    'models_evaluated': len(evaluation_results),
-                    'evaluation_time': evaluation_time,
-                    'artifacts_generated': len(eval_files),
-                    'success': True
-                }
-                
-                return True
-                
-            except ImportError as e:
-                print(f"❌ Model evaluator not available: {e}")
-                return False
-                
-        except Exception as e:
-            print(f"❌ Model evaluation failed: {e}")
-            return False
-    
-    def _execute_deployment_prep(self) -> bool:
-        """Execute deployment preparation stage"""
-        try:
-            print("🚀 Preparing deployment artifacts...")
-            
-            # Get results from previous stages
-            training_results = self.pipeline_state['stage_results']['model_training']
-            evaluation_results = self.pipeline_state['stage_results']['model_evaluation']
+            # Get packaged models info
+            models_info = self.execution_state['stage_results']['package_models']
+            recommended_model = models_info['recommended_model']
             
             # Create deployment configuration
             deployment_config = {
+                'deployment_info': {
+                    'created_at': datetime.now().isoformat(),
+                    'recommended_model': recommended_model,
+                    'total_models': models_info['packaged_count'],
+                    'source_stage2_dir': str(self.stage2_dir),
+                    'run_mode': self.run_mode
+                },
                 'model_info': {
-                    'best_model': training_results.get('best_model', 'Unknown'),
-                    'best_score': training_results.get('best_score', 0),
-                    'model_directory': training_results.get('model_directory'),
-                    'training_time': training_results.get('total_training_time', 0)
-                },
-                'data_info': {
                     'target_column': self.config['global']['target_column'],
-                    'original_shape': self.pipeline_state['stage_results']['data_loading']['shape'],
-                    'cleaned_shape': self.pipeline_state['stage_results']['data_cleaning']['final_shape'],
-                    'data_retention': self.pipeline_state['stage_results']['data_cleaning']['data_retention']
+                    'models_directory': str(self.outputs['models']),
+                    'available_models': [m['name'] for m in models_info['packaged_models']]
                 },
-                'pipeline_info': {
-                    'timestamp': datetime.now().isoformat(),
-                    'mode': self.mode,
-                    'discovery_dir': str(self.discovery_dir) if self.discovery_dir else None,
-                    'total_execution_time': (datetime.now() - self.pipeline_state['start_time']).total_seconds()
-                },
-                'deployment_artifacts': {
-                    'model_directory': str(self.production_outputs['models']),
-                    'evaluation_directory': str(self.production_outputs['evaluations']),
-                    'reports_directory': str(self.production_outputs['reports']),
-                    'deployment_config': str(self.production_outputs['deployment'] / "deployment_config.yaml")
+                'serving_config': {
+                    'default_model': recommended_model,
+                    'model_format': 'pickle',
+                    'prediction_type': 'auto_detect',
+                    'preprocessing_required': True
                 }
             }
             
             # Save deployment configuration
-            deployment_config_path = self.production_outputs['deployment'] / "deployment_config.yaml"
-            with open(deployment_config_path, 'w') as f:
+            config_path = self.outputs['deployment'] / "deployment_config.yaml"
+            with open(config_path, 'w') as f:
                 yaml.dump(deployment_config, f, indent=2, default_flow_style=False)
             
-            # Create model serving script template
-            serving_script = self._create_serving_script_template(deployment_config)
-            serving_script_path = self.production_outputs['deployment'] / "model_serving.py"
-            with open(serving_script_path, 'w') as f:
+            # Create simple serving script
+            serving_script = self._create_simple_serving_script(deployment_config)
+            serving_path = self.outputs['deployment'] / "model_server.py"
+            with open(serving_path, 'w') as f:
                 f.write(serving_script)
             
+            # Create API template
+            api_template = self._create_api_template(deployment_config)
+            api_path = self.outputs['deployment'] / "api_template.py"
+            with open(api_path, 'w') as f:
+                f.write(api_template)
+            
             # Create requirements file
-            requirements = self._create_requirements_file()
-            requirements_path = self.production_outputs['deployment'] / "requirements.txt"
-            with open(requirements_path, 'w') as f:
+            requirements = self._create_requirements()
+            req_path = self.outputs['deployment'] / "requirements.txt"
+            with open(req_path, 'w') as f:
                 f.write(requirements)
             
-            # Create deployment README
-            readme = self._create_deployment_readme(deployment_config)
-            readme_path = self.production_outputs['deployment'] / "README.md"
-            with open(readme_path, 'w') as f:
-                f.write(readme)
+            # Create Docker file
+            dockerfile = self._create_dockerfile()
+            docker_path = self.outputs['deployment'] / "Dockerfile"
+            with open(docker_path, 'w') as f:
+                f.write(dockerfile)
             
-            print(f"✅ Deployment preparation completed!")
-            print(f"📁 Deployment artifacts:")
-            print(f"   📄 Config: {deployment_config_path}")
-            print(f"   🐍 Serving script: {serving_script_path}")
-            print(f"   📦 Requirements: {requirements_path}")
-            print(f"   📖 README: {readme_path}")
+            print(f"✅ Deployment assets generated")
+            print(f"   ⚙️  Configuration: {config_path}")
+            print(f"   🐍 Serving script: {serving_path}")
+            print(f"   🌐 API template: {api_path}")
+            print(f"   📦 Requirements: {req_path}")
+            print(f"   🐳 Dockerfile: {docker_path}")
             
-            # Store results
-            self.pipeline_state['stage_results']['deployment_prep'] = {
-                'deployment_directory': str(self.production_outputs['deployment']),
-                'config_path': str(deployment_config_path),
-                'serving_script_path': str(serving_script_path),
-                'requirements_path': str(requirements_path),
-                'readme_path': str(readme_path),
+            self.execution_state['stage_results']['generate_deployment'] = {
+                'config_path': str(config_path),
+                'serving_script_path': str(serving_path),
+                'api_template_path': str(api_path),
+                'requirements_path': str(req_path),
+                'dockerfile_path': str(docker_path),
                 'success': True
             }
             
             return True
             
         except Exception as e:
-            print(f"❌ Deployment preparation failed: {e}")
+            print(f"❌ Deployment asset generation failed: {e}")
             return False
     
-    def _create_serving_script_template(self, deployment_config: Dict[str, Any]) -> str:
-        """Create model serving script template"""
+    def _create_documentation_package(self) -> bool:
+        """Create comprehensive documentation package"""
+        try:
+            print("📖 Creating documentation package...")
+            
+            # Create executive summary
+            print("   Creating executive summary...")
+            executive_summary = self._create_executive_summary()
+            summary_path = self.outputs['docs'] / "executive_summary.md"
+            with open(summary_path, 'w') as f:
+                f.write(executive_summary)
+            
+            # Create deployment guide
+            print("   Creating deployment guide...")
+            deployment_guide = self._create_deployment_guide()
+            guide_path = self.outputs['docs'] / "deployment_guide.md"
+            with open(guide_path, 'w') as f:
+                f.write(deployment_guide)
+            
+            # Create model comparison report
+            print("   Creating model comparison...")
+            try:
+                model_comparison = self._create_model_comparison()
+                comparison_path = self.outputs['reports'] / "model_comparison.html"
+                with open(comparison_path, 'w') as f:
+                    f.write(model_comparison)
+            except Exception as e:
+                print(f"     Error in model comparison: {e}")
+                raise
+            
+            # Create maintenance guide
+            print("   Creating maintenance guide...")
+            maintenance_guide = self._create_maintenance_guide()
+            maintenance_path = self.outputs['docs'] / "maintenance_guide.md"
+            with open(maintenance_path, 'w') as f:
+                f.write(maintenance_guide)
+            
+            print(f"✅ Documentation package created")
+            print(f"   📋 Executive summary: {summary_path}")
+            print(f"   📖 Deployment guide: {guide_path}")
+            print(f"   📊 Model comparison: {comparison_path}")
+            print(f"   🔧 Maintenance guide: {maintenance_path}")
+            
+            self.execution_state['stage_results']['create_documentation'] = {
+                'executive_summary_path': str(summary_path),
+                'deployment_guide_path': str(guide_path),
+                'model_comparison_path': str(comparison_path),
+                'maintenance_guide_path': str(maintenance_path),
+                'success': True
+            }
+            
+            return True
+            
+        except Exception as e:
+            print(f"❌ Documentation creation failed: {e}")
+            return False
+    
+    def _create_simple_serving_script(self, config: Dict[str, Any]) -> str:
+        """Create a simple model serving script"""
         return f'''#!/usr/bin/env python3
 """
-Model Serving Script
-Generated by DS-AutoAdvisor Production Pipeline
-Timestamp: {datetime.now().isoformat()}
+Simple Model Server
+Generated by DS-AutoAdvisor Simplified Production Pipeline
 """
 
 import pickle
@@ -970,319 +553,760 @@ import pandas as pd
 import numpy as np
 from pathlib import Path
 import json
+import warnings
+warnings.filterwarnings('ignore')
 
-class ModelServer:
-    """Production model serving class"""
+class SimpleModelServer:
+    """Simple production model server"""
     
-    def __init__(self, model_path: str):
+    def __init__(self, models_directory: str = "models"):
         """Initialize model server"""
-        self.model_path = Path(model_path)
-        self.model = None
-        self.load_model()
+        self.models_dir = Path(models_directory)
+        self.models = {{}}
+        self.default_model = "{config['serving_config']['default_model']}"
+        self.target_column = "{config['model_info']['target_column']}"
+        self.load_models()
     
-    def load_model(self):
-        """Load the trained model"""
-        try:
-            with open(self.model_path, 'rb') as f:
-                self.model = pickle.load(f)
-            print(f"✅ Model loaded: {{self.model_path}}")
-        except Exception as e:
-            print(f"❌ Failed to load model: {{e}}")
-            raise
+    def load_models(self):
+        """Load all available models"""
+        model_files = list(self.models_dir.glob("*.pkl"))
+        
+        for model_file in model_files:
+            model_name = model_file.stem
+            try:
+                with open(model_file, 'rb') as f:
+                    model = pickle.load(f)
+                self.models[model_name] = model
+                print(f"✅ Loaded model: {{model_name}}")
+            except Exception as e:
+                print(f"❌ Failed to load {{model_name}}: {{e}}")
+        
+        if not self.models:
+            raise ValueError("No models loaded successfully")
+        
+        print(f"📊 Total models loaded: {{len(self.models)}}")
+        print(f"🎯 Default model: {{self.default_model}}")
     
-    def predict(self, X):
+    def predict(self, data, model_name: str = None):
         """Make predictions"""
-        if self.model is None:
-            raise ValueError("Model not loaded")
+        if model_name is None:
+            model_name = self.default_model
         
-        return self.model.predict(X)
-    
-    def predict_proba(self, X):
-        """Make probability predictions (if supported)"""
-        if self.model is None:
-            raise ValueError("Model not loaded")
+        if model_name not in self.models:
+            raise ValueError(f"Model '{{model_name}}' not found")
         
-        if hasattr(self.model, 'predict_proba'):
-            return self.model.predict_proba(X)
+        model = self.models[model_name]
+        
+        # Handle different input types
+        if isinstance(data, pd.DataFrame):
+            X = data
+        elif isinstance(data, dict):
+            X = pd.DataFrame([data])
         else:
-            raise ValueError("Model does not support probability predictions")
+            raise ValueError("Data must be DataFrame or dict")
+        
+        # Remove target column if present
+        if self.target_column in X.columns:
+            X = X.drop(columns=[self.target_column])
+        
+        predictions = model.predict(X)
+        return predictions.tolist() if hasattr(predictions, 'tolist') else predictions
+    
+    def predict_proba(self, data, model_name: str = None):
+        """Make probability predictions (if supported)"""
+        if model_name is None:
+            model_name = self.default_model
+        
+        if model_name not in self.models:
+            raise ValueError(f"Model '{{model_name}}' not found")
+        
+        model = self.models[model_name]
+        
+        if not hasattr(model, 'predict_proba'):
+            raise ValueError(f"Model '{{model_name}}' does not support probability predictions")
+        
+        # Handle different input types
+        if isinstance(data, pd.DataFrame):
+            X = data
+        elif isinstance(data, dict):
+            X = pd.DataFrame([data])
+        else:
+            raise ValueError("Data must be DataFrame or dict")
+        
+        # Remove target column if present
+        if self.target_column in X.columns:
+            X = X.drop(columns=[self.target_column])
+        
+        probabilities = model.predict_proba(X)
+        return probabilities.tolist() if hasattr(probabilities, 'tolist') else probabilities
+    
+    def get_model_info(self):
+        """Get information about loaded models"""
+        return {{
+            'available_models': list(self.models.keys()),
+            'default_model': self.default_model,
+            'target_column': self.target_column,
+            'total_models': len(self.models)
+        }}
 
 
 def main():
     """Example usage"""
-    # Configuration
-    MODEL_PATH = "{deployment_config['model_info']['model_directory']}"
-    BEST_MODEL = "{deployment_config['model_info']['best_model']}"
-    
-    # Initialize server
-    model_file = Path(MODEL_PATH) / f"{{BEST_MODEL}}.pkl"
-    server = ModelServer(model_file)
-    
-    # Example prediction
-    # X_new = pd.DataFrame(...)  # Your new data
-    # predictions = server.predict(X_new)
-    # print(f"Predictions: {{predictions}}")
+    try:
+        # Initialize server
+        server = SimpleModelServer("models")
+        
+        # Show model info
+        info = server.get_model_info()
+        print(f"\\nModel Server Info:")
+        for key, value in info.items():
+            print(f"  {{key}}: {{value}}")
+        
+        # Example prediction (uncomment and modify as needed)
+        # sample_data = {{'feature1': 1.0, 'feature2': 2.0}}  # Replace with actual features
+        # prediction = server.predict(sample_data)
+        # print(f"\\nPrediction: {{prediction}}")
+        
+    except Exception as e:
+        print(f"❌ Error: {{e}}")
 
 if __name__ == "__main__":
     main()
 '''
     
-    def _create_requirements_file(self) -> str:
-        """Create requirements.txt for deployment"""
+    def _create_api_template(self, config: Dict[str, Any]) -> str:
+        """Create a simple API template"""
+        return f'''#!/usr/bin/env python3
+"""
+Flask API Template
+Generated by DS-AutoAdvisor Simplified Production Pipeline
+"""
+
+from flask import Flask, request, jsonify
+import pandas as pd
+import json
+from model_server import SimpleModelServer
+
+app = Flask(__name__)
+
+# Initialize model server
+try:
+    model_server = SimpleModelServer("models")
+    print("✅ Model server initialized")
+except Exception as e:
+    print(f"❌ Failed to initialize model server: {{e}}")
+    model_server = None
+
+@app.route('/health', methods=['GET'])
+def health_check():
+    """Health check endpoint"""
+    if model_server is None:
+        return jsonify({{'status': 'error', 'message': 'Model server not initialized'}}), 500
+    
+    return jsonify({{'status': 'healthy', 'models': model_server.get_model_info()}})
+
+@app.route('/predict', methods=['POST'])
+def predict():
+    """Prediction endpoint"""
+    if model_server is None:
+        return jsonify({{'error': 'Model server not initialized'}}), 500
+    
+    try:
+        # Get request data
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({{'error': 'No data provided'}}), 400
+        
+        # Extract model name if provided
+        model_name = data.get('model_name', None)
+        input_data = data.get('data', data)
+        
+        # Make prediction
+        prediction = model_server.predict(input_data, model_name)
+        
+        return jsonify({{
+            'prediction': prediction,
+            'model_used': model_name or model_server.default_model,
+            'status': 'success'
+        }})
+        
+    except Exception as e:
+        return jsonify({{'error': str(e)}}), 400
+
+@app.route('/predict_proba', methods=['POST'])
+def predict_proba():
+    """Probability prediction endpoint"""
+    if model_server is None:
+        return jsonify({{'error': 'Model server not initialized'}}), 500
+    
+    try:
+        # Get request data
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({{'error': 'No data provided'}}), 400
+        
+        # Extract model name if provided
+        model_name = data.get('model_name', None)
+        input_data = data.get('data', data)
+        
+        # Make probability prediction
+        probabilities = model_server.predict_proba(input_data, model_name)
+        
+        return jsonify({{
+            'probabilities': probabilities,
+            'model_used': model_name or model_server.default_model,
+            'status': 'success'
+        }})
+        
+    except Exception as e:
+        return jsonify({{'error': str(e)}}), 400
+
+@app.route('/models', methods=['GET'])
+def get_models():
+    """Get available models endpoint"""
+    if model_server is None:
+        return jsonify({{'error': 'Model server not initialized'}}), 500
+    
+    return jsonify(model_server.get_model_info())
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000, debug=False)
+'''
+    
+    def _create_requirements(self) -> str:
+        """Create requirements.txt"""
         return '''# DS-AutoAdvisor Production Requirements
 pandas>=1.3.0
 numpy>=1.20.0
 scikit-learn>=1.0.0
 xgboost>=1.5.0
 lightgbm>=3.2.0
-catboost>=1.0.0
 matplotlib>=3.5.0
 seaborn>=0.11.0
-plotly>=5.0.0
-shap>=0.40.0
 pyyaml>=6.0
 joblib>=1.1.0
+flask>=2.0.0
+gunicorn>=20.1.0
 '''
     
-    def _create_deployment_readme(self, deployment_config: Dict[str, Any]) -> str:
-        """Create deployment README"""
-        return f'''# DS-AutoAdvisor Production Deployment
+    def _create_dockerfile(self) -> str:
+        """Create Dockerfile"""
+        return '''FROM python:3.9-slim
 
-## Model Information
-- **Best Model**: {deployment_config['model_info']['best_model']}
-- **Best Score**: {deployment_config['model_info']['best_score']:.4f}
-- **Training Time**: {deployment_config['model_info']['training_time']:.2f}s
+WORKDIR /app
 
-## Data Information
-- **Target Column**: {deployment_config['data_info']['target_column']}
-- **Original Shape**: {deployment_config['data_info']['original_shape']}
-- **Cleaned Shape**: {deployment_config['data_info']['cleaned_shape']}
-- **Data Retention**: {deployment_config['data_info']['data_retention']:.1%}
+# Copy requirements and install dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
-## Pipeline Information
-- **Generated**: {deployment_config['pipeline_info']['timestamp']}
-- **Mode**: {deployment_config['pipeline_info']['mode']}
-- **Total Execution Time**: {deployment_config['pipeline_info']['total_execution_time']:.2f}s
+# Copy application files
+COPY models/ models/
+COPY *.py .
+COPY *.yaml .
 
-## Deployment Files
-- `deployment_config.yaml`: Complete deployment configuration
-- `model_serving.py`: Model serving script template
-- `requirements.txt`: Python dependencies
-- `README.md`: This file
+# Expose port
+EXPOSE 5000
+
+# Run the application
+CMD ["gunicorn", "--bind", "0.0.0.0:5000", "api_template:app"]
+'''
+    
+    def _create_executive_summary(self) -> str:
+        """Create executive summary"""
+        models_info = self.execution_state['stage_results']['package_models']
+        training_results = self.training_results
+        
+        # Get best model performance
+        best_model = models_info['packaged_models'][0] if models_info['packaged_models'] else {}
+        
+        return f'''# DS-AutoAdvisor Production Summary
+
+## Executive Summary
+
+**Generated:** {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}  
+**Project:** DS-AutoAdvisor Production Deployment  
+**Target:** {self.config['global']['target_column']}  
+
+## Key Results
+
+### Model Performance
+- **Best Model:** {models_info['recommended_model']}
+- **Total Models Trained:** {len(training_results.get('model_rankings', []))}
+- **Production-Ready Models:** {models_info['packaged_count']}
+
+### Data Summary
+- **Source:** Stage 2 Testing Results
+- **Data Quality:** Validated and cleaned
+- **Feature Engineering:** Completed in Stage 2
+
+### Deployment Status
+- **Production Package:** ✅ Ready
+- **Serving Infrastructure:** ✅ Generated
+- **API Template:** ✅ Available
+- **Documentation:** ✅ Complete
+
+## Next Steps
+
+1. **Test Deployment**
+   - Review deployment assets in `deployment/` directory
+   - Test model serving script with sample data
+   - Validate API endpoints
+
+2. **Production Setup**
+   - Deploy to target environment
+   - Configure monitoring and logging
+   - Set up model versioning
+
+3. **Maintenance**
+   - Monitor model performance
+   - Plan retraining schedule
+   - Update documentation as needed
+
+## File Structure
+
+```
+production_artifacts/
+├── models/              # Production model files
+├── deployment/          # Deployment configuration and scripts
+├── documentation/       # Complete documentation
+└── reports/            # Performance reports
+```
+
+## Contact & Support
+
+For questions about this deployment package, refer to the maintenance guide 
+or contact the DS-AutoAdvisor development team.
+'''
+    
+    def _create_deployment_guide(self) -> str:
+        """Create deployment guide"""
+        return f'''# Deployment Guide
 
 ## Quick Start
 
-1. Install dependencies:
+### 1. Local Testing
+
+```bash
+# Install dependencies
+pip install -r deployment/requirements.txt
+
+# Test model server
+cd deployment
+python model_server.py
+
+# Test API (in another terminal)
+python api_template.py
+```
+
+### 2. API Testing
+
+```bash
+# Health check
+curl http://localhost:5000/health
+
+# Make a prediction
+curl -X POST http://localhost:5000/predict \\
+  -H "Content-Type: application/json" \\
+  -d '{{"data": {{"feature1": 1.0, "feature2": 2.0}}}}'
+```
+
+### 3. Docker Deployment
+
+```bash
+# Build image
+docker build -t ds-autoadvisor .
+
+# Run container
+docker run -p 5000:5000 ds-autoadvisor
+```
+
+## Production Deployment
+
+### Environment Setup
+
+1. **Server Requirements**
+   - Python 3.9+
+   - 2GB+ RAM
+   - Docker (optional)
+
+2. **Installation**
    ```bash
    pip install -r requirements.txt
    ```
 
-2. Load and use the model:
-   ```python
-   from model_serving import ModelServer
-   
-   server = ModelServer("path/to/best/model.pkl")
-   predictions = server.predict(X_new)
-   ```
+3. **Configuration**
+   - Review `deployment_config.yaml`
+   - Update paths if necessary
+   - Configure logging
 
-## Directory Structure
-- `models/`: Trained model artifacts
-- `evaluations/`: Model evaluation reports and plots
-- `reports/`: Training and advisory reports
-- `deployment/`: This deployment package
+### Monitoring
 
-## Next Steps
-1. Test the model serving script with your data
-2. Integrate into your production environment
-3. Set up monitoring and logging
-4. Schedule model retraining as needed
+1. **Health Checks**
+   - `/health` endpoint for status
+   - Monitor response times
+   - Track prediction accuracy
+
+2. **Logging**
+   - Enable application logging
+   - Monitor error rates
+   - Track usage patterns
+
+### Security
+
+1. **API Security**
+   - Add authentication
+   - Rate limiting
+   - Input validation
+
+2. **Model Security**
+   - Secure model files
+   - Version control
+   - Access controls
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Model Loading Errors**
+   - Check file paths
+   - Verify model format
+   - Check dependencies
+
+2. **Prediction Errors**
+   - Validate input format
+   - Check feature names
+   - Verify data types
+
+3. **Performance Issues**
+   - Monitor memory usage
+   - Check CPU utilization
+   - Consider model optimization
+
+### Support
+
+Refer to maintenance guide for detailed troubleshooting steps.
 '''
     
-    def _save_checkpoint(self, stage_id: str):
-        """Save pipeline checkpoint"""
-        try:
-            checkpoint = {
-                'stage_id': stage_id,
-                'timestamp': datetime.now().isoformat(),
-                'pipeline_state': self.pipeline_state,
-                'performance_tracker': self.performance_tracker
-            }
-            
-            checkpoint_path = self.production_outputs['logs'] / f"checkpoint_{stage_id}.json"
-            with open(checkpoint_path, 'w') as f:
-                json.dump(checkpoint, f, indent=2, default=str)
-                
-        except Exception as e:
-            print(f"⚠️ Failed to save checkpoint: {e}")
-    
-    def _stage_review_checkpoint(self, stage_id: str) -> bool:
-        """Interactive stage review checkpoint"""
-        print(f"\n🔍 Stage Review: {stage_id.upper()}")
-        print("Options: [c]ontinue, [s]kip, [r]eview results, [q]uit")
+    def _create_model_comparison(self) -> str:
+        """Create model comparison HTML report"""
+        model_rankings = self.training_results.get('model_rankings', [])[:5]  # Top 5 models
         
-        while True:
-            response = input("Choice: ").lower().strip()
-            
-            if response in ['c', 'continue', '']:
-                return True
-            elif response in ['s', 'skip']:
-                print("⏭️ Skipping to next stage")
-                return True
-            elif response in ['r', 'review']:
-                self._display_stage_results(stage_id)
-            elif response in ['q', 'quit']:
-                return False
-            else:
-                print("Invalid choice. Use: [c]ontinue, [s]kip, [r]eview, [q]uit")
+        html_content = '''<!DOCTYPE html>
+<html>
+<head>
+    <title>Model Comparison Report</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        table { border-collapse: collapse; width: 100%; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        .best { background-color: #d4edda; }
+    </style>
+</head>
+<body>
+    <h1>Model Comparison Report</h1>
+    <p>Generated: ''' + datetime.now().strftime("%Y-%m-%d %H:%M:%S") + '''</p>
     
-    def _display_stage_results(self, stage_id: str):
-        """Display stage results for review"""
-        if stage_id in self.pipeline_state['stage_results']:
-            results = self.pipeline_state['stage_results'][stage_id]
-            print(f"\n📊 {stage_id.upper()} Results:")
-            for key, value in results.items():
-                if key != 'success':
-                    print(f"   {key}: {value}")
-        else:
-            print(f"No results available for {stage_id}")
-    
-    def _handle_stage_failure(self, stage_id: str) -> bool:
-        """Handle stage failure with recovery options"""
-        print(f"\n🚨 Stage Failed: {stage_id}")
-        print("Options: [r]etry, [s]kip, [q]uit")
+    <h2>Top Models Performance</h2>
+    <table>
+        <tr>
+            <th>Rank</th>
+            <th>Model Name</th>
+            <th>Accuracy</th>
+            <th>Training Time (s)</th>
+            <th>Status</th>
+        </tr>
+'''
         
-        while True:
-            response = input("Recovery choice: ").lower().strip()
+        for i, model_ranking in enumerate(model_rankings, 1):
+            name = model_ranking.get('model', 'Unknown')
+            accuracy = model_ranking.get('primary_score', 'N/A')
+            training_time = model_ranking.get('training_time', 'N/A')
+            row_class = 'best' if i == 1 else ''
             
-            if response in ['r', 'retry']:
-                print(f"🔄 Retrying stage: {stage_id}")
-                return True  # Will retry the stage
-            elif response in ['s', 'skip']:
-                print(f"⏭️ Skipping stage: {stage_id}")
-                return True  # Continue to next stage
-            elif response in ['q', 'quit']:
-                print("🛑 Pipeline aborted")
-                return False
-            else:
-                print("Invalid choice. Use: [r]etry, [s]kip, [q]uit")
+            # Format accuracy and training time safely
+            accuracy_str = f"{accuracy:.4f}" if isinstance(accuracy, (int, float)) else str(accuracy)
+            time_str = f"{training_time:.2f}" if isinstance(training_time, (int, float)) else str(training_time)
+            status = 'Recommended' if i == 1 else 'Available'
+            
+            html_content += f'''
+        <tr class="{row_class}">
+            <td>{i}</td>
+            <td>{name}</td>
+            <td>{accuracy_str}</td>
+            <td>{time_str}</td>
+            <td>{status}</td>
+        </tr>
+'''
+        
+        html_content += '''
+    </table>
     
-    def _finalize_pipeline(self) -> bool:
-        """Finalize pipeline execution"""
+    <h2>Deployment Recommendation</h2>
+    <p>The top-ranked model has been selected as the default for deployment based on performance metrics.</p>
+    
+</body>
+</html>
+'''
+        return html_content
+    
+    def _create_maintenance_guide(self) -> str:
+        """Create maintenance guide"""
+        return f'''# Maintenance Guide
+
+## Overview
+
+This guide covers ongoing maintenance of the DS-AutoAdvisor production deployment.
+
+## Regular Maintenance Tasks
+
+### Daily Checks
+- [ ] Monitor API health endpoint
+- [ ] Check error logs
+- [ ] Verify prediction accuracy
+
+### Weekly Reviews
+- [ ] Analyze usage patterns
+- [ ] Review performance metrics
+- [ ] Update documentation if needed
+
+### Monthly Tasks
+- [ ] Model performance evaluation
+- [ ] Security updates
+- [ ] Backup model artifacts
+
+## Model Updates
+
+### When to Retrain
+- Performance degradation detected
+- New data available
+- Business requirements change
+
+### Retraining Process
+1. Run updated Stage 1 & 2 pipelines
+2. Generate new production artifacts
+3. A/B test new models
+4. Deploy if performance improves
+
+### Version Control
+- Tag model versions
+- Keep deployment history
+- Document changes
+
+## Monitoring
+
+### Key Metrics
+- **Prediction Accuracy:** Target vs. actual
+- **Response Time:** API endpoint performance
+- **Error Rate:** Failed predictions
+- **Usage Volume:** Request patterns
+
+### Alerting
+Set up alerts for:
+- High error rates (>5%)
+- Slow response times (>2s)
+- Low accuracy (degradation >10%)
+
+## Troubleshooting
+
+### Model Issues
+```bash
+# Check model loading
+python -c "import pickle; print(pickle.load(open('models/best_model.pkl', 'rb')))"
+
+# Verify predictions
+python model_server.py
+```
+
+### API Issues
+```bash
+# Check API health
+curl http://localhost:5000/health
+
+# View logs
+tail -f api.log
+```
+
+### Performance Issues
+```bash
+# Monitor resources
+top -p $(pgrep -f api_template.py)
+
+# Check disk space
+df -h
+```
+
+## Backup and Recovery
+
+### Backup Schedule
+- **Daily:** Configuration files
+- **Weekly:** Model artifacts
+- **Monthly:** Complete deployment package
+
+### Recovery Procedures
+1. Restore from backup
+2. Verify model integrity
+3. Test predictions
+4. Update monitoring
+
+## Security
+
+### Regular Security Tasks
+- Update dependencies
+- Review access logs
+- Scan for vulnerabilities
+- Update authentication
+
+### Incident Response
+1. Isolate affected systems
+2. Analyze impact
+3. Apply fixes
+4. Document lessons learned
+
+## Support Contacts
+
+- **Technical Issues:** Development Team
+- **Business Questions:** Stakeholders
+- **Infrastructure:** DevOps Team
+
+## Documentation Updates
+
+Keep this guide updated with:
+- New procedures
+- Lessons learned
+- Configuration changes
+- Performance optimizations
+'''
+    
+    def _finalize_artifacts(self) -> bool:
+        """Finalize production artifacts"""
         try:
             end_time = datetime.now()
-            total_time = (end_time - self.pipeline_state['start_time']).total_seconds()
+            total_time = (end_time - self.execution_state['start_time']).total_seconds()
             
             # Create final summary
-            pipeline_summary = {
+            final_summary = {
                 'execution_metadata': {
-                    'start_time': self.pipeline_state['start_time'].isoformat(),
+                    'start_time': self.execution_state['start_time'].isoformat(),
                     'end_time': end_time.isoformat(),
                     'total_execution_time': total_time,
-                    'mode': self.mode
+                    'run_mode': self.run_mode
                 },
                 'stage_summary': {
-                    'completed_stages': self.pipeline_state['completed_stages'],
-                    'failed_stages': self.pipeline_state['failed_stages'],
-                    'total_stages': len(self.pipeline_state['completed_stages']) + len(self.pipeline_state['failed_stages'])
+                    'completed_stages': self.execution_state['completed_stages'],
+                    'failed_stages': self.execution_state['failed_stages'],
+                    'success_rate': len(self.execution_state['completed_stages']) / 
+                                  (len(self.execution_state['completed_stages']) + len(self.execution_state['failed_stages']))
                 },
-                'performance_summary': self.performance_tracker,
-                'stage_results': self.pipeline_state['stage_results'],
-                'output_directories': {k: str(v) for k, v in self.production_outputs.items()},
-                'success': len(self.pipeline_state['failed_stages']) == 0
+                'artifacts_summary': {
+                    'models_packaged': self.execution_state['stage_results']['package_models']['packaged_count'],
+                    'recommended_model': self.execution_state['stage_results']['package_models']['recommended_model'],
+                    'deployment_assets': len([f for f in self.outputs['deployment'].glob('*') if f.is_file()]),
+                    'documentation_files': len([f for f in self.outputs['docs'].glob('*') if f.is_file()])
+                },
+                'output_directories': {k: str(v) for k, v in self.outputs.items()},
+                'stage_results': self.execution_state['stage_results'],
+                'success': len(self.execution_state['failed_stages']) == 0
             }
             
             # Save final summary
-            summary_path = self.production_outputs['base'] / "production_pipeline_summary.json"
+            summary_path = self.outputs['base'] / "production_artifacts_summary.json"
             with open(summary_path, 'w') as f:
-                json.dump(pipeline_summary, f, indent=2, default=str)
+                json.dump(final_summary, f, indent=2, default=str)
+            
+            # MLflow logging
+            if self.mlflow_enabled and self.mlflow_manager:
+                try:
+                    self.mlflow_manager.log_production_artifacts(final_summary)
+                    self.mlflow_manager.end_pipeline_run(success=final_summary['success'])
+                except Exception as e:
+                    print(f"⚠️ MLflow logging failed: {e}")
             
             # Print final results
             print("\n" + "="*80)
-            print("🎉 PRODUCTION PIPELINE COMPLETED")
+            print("🎉 PRODUCTION ARTIFACTS GENERATION COMPLETED")
             print("="*80)
-            
             print(f"⏱️  Total execution time: {total_time:.2f}s ({total_time/60:.1f} minutes)")
-            print(f"✅ Completed stages: {len(self.pipeline_state['completed_stages'])}")
-            print(f"❌ Failed stages: {len(self.pipeline_state['failed_stages'])}")
+            print(f"✅ Completed stages: {len(self.execution_state['completed_stages'])}")
+            print(f"❌ Failed stages: {len(self.execution_state['failed_stages'])}")
             
-            if pipeline_summary['success']:
-                print(f"\n🚀 Pipeline Success! All stages completed successfully.")
+            if final_summary['success']:
+                print(f"\n🚀 Production Artifacts Ready!")
+                print(f"📦 Models packaged: {final_summary['artifacts_summary']['models_packaged']}")
+                print(f"🏆 Recommended model: {final_summary['artifacts_summary']['recommended_model']}")
+                print(f"🚀 Deployment assets: {final_summary['artifacts_summary']['deployment_assets']} files")
+                print(f"📖 Documentation: {final_summary['artifacts_summary']['documentation_files']} files")
             else:
-                print(f"\n⚠️  Pipeline completed with {len(self.pipeline_state['failed_stages'])} failed stages.")
+                print(f"\n⚠️  Artifacts generation completed with issues")
             
-            print(f"\n📁 All outputs saved to: {self.production_outputs['base']}")
+            print(f"\n📁 All artifacts saved to: {self.outputs['base']}")
             print(f"📄 Complete summary: {summary_path}")
             
-            # Show key artifacts
-            deployment_results = self.pipeline_state['stage_results'].get('deployment_prep', {})
-            if deployment_results.get('success'):
-                print(f"\n🚀 Deployment Artifacts Ready:")
-                print(f"   📁 Deployment directory: {deployment_results['deployment_directory']}")
-                print(f"   ⚙️  Configuration: {deployment_results['config_path']}")
-                print(f"   🐍 Serving script: {deployment_results['serving_script_path']}")
+            print(f"\n🚀 Ready for Deployment:")
+            print(f"   📁 Production directory: {self.outputs['base']}")
+            print(f"   🏆 Best model: {final_summary['artifacts_summary']['recommended_model']}")
+            print(f"   🐍 Serving script: {self.outputs['deployment']}/model_server.py")
+            print(f"   🌐 API template: {self.outputs['deployment']}/api_template.py")
+            print(f"   📖 Documentation: {self.outputs['docs']}/")
             
-            return pipeline_summary['success']
+            return final_summary['success']
             
         except Exception as e:
-            print(f"❌ Pipeline finalization failed: {e}")
+            print(f"❌ Artifact finalization failed: {e}")
+            traceback.print_exc()
             return False
 
 
 def main():
     """Main function"""
-    parser = argparse.ArgumentParser(description='DS-AutoAdvisor Production Pipeline')
-    parser.add_argument('--discovery-dir', type=str,
-                       help='Path to discovery results directory')
-    parser.add_argument('--config', type=str,
-                       help='Path to custom configuration file')
+    parser = argparse.ArgumentParser(description='DS-AutoAdvisor Simplified Production Pipeline')
+    parser.add_argument('--stage2-dir', type=str,
+                       help='Path to Stage 2 results directory')
     parser.add_argument('--output', type=str, default='pipeline_outputs',
                        help='Base output directory')
-    parser.add_argument('--mode', type=str, default='production',
-                       choices=['production', 'interactive'],
-                       help='Pipeline execution mode')
-    parser.add_argument('--enable-all', action='store_true',
-                       help='Enable all advanced features (SHAP, ensemble, etc.)')
+    parser.add_argument('--run-mode', type=str, default='custom', 
+                       choices=['fast', 'custom'],
+                       help='Configuration mode (v3 unified config)')
+    parser.add_argument('--enable-mlflow', action='store_true',
+                       help='Force enable MLflow tracking')
     
     args = parser.parse_args()
     
     # Suppress warnings for cleaner output
     warnings.filterwarnings('ignore')
     
-    # Initialize pipeline
-    pipeline = ProductionPipeline(
-        discovery_dir=args.discovery_dir,
-        config_path=args.config,
-        output_base=args.output,
-        mode=args.mode
+    # Initialize simplified pipeline
+    pipeline = SimplifiedProductionPipeline(
+        stage2_results_dir=args.stage2_dir,
+        run_mode=args.run_mode,
+        force_enable_mlflow=args.enable_mlflow,
+        output_base=args.output
     )
     
-    if not pipeline.discovery_dir:
-        print("❌ No discovery directory available")
-        print("💡 Run data discovery first: python 01_data_discovery.py")
+    if not pipeline.stage2_dir:
+        print("❌ No Stage 2 directory found. Run 02_stage_testing.py first.")
         return 1
     
-    # Run production pipeline
+    # Run simplified production pipeline
     try:
-        success = pipeline.run_production_pipeline()
-        
+        success = pipeline.run_simplified_pipeline()
         if success:
-            print(f"\n🎉 Production Pipeline Completed Successfully!")
-            print(f"📁 All outputs: {pipeline.production_outputs['base']}")
+            print(f"\n🎉 Production Artifacts Generated Successfully!")
+            print(f"📁 All artifacts: {pipeline.outputs['base']}")
             print(f"\n🚀 Ready for Deployment!")
             return 0
         else:
-            print(f"\n❌ Production Pipeline Failed")
+            print(f"\n❌ Production Artifacts Generation Failed")
             return 1
-            
     except KeyboardInterrupt:
         print(f"\n🛑 Pipeline interrupted by user")
         return 1
     except Exception as e:
         print(f"\n💥 Pipeline crashed: {e}")
-        import traceback
         traceback.print_exc()
         return 1
-
 
 if __name__ == "__main__":
     exit(main())
