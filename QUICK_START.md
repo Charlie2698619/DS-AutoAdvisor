@@ -1,6 +1,6 @@
 # DS-AutoAdvisor Quick Start 🚀
 
-**Get from CSV to trained models in 15 minutes**
+**Get from CSV to trained models in 15 minutes with optional HPO and monitoring**
 
 ## 🎯 The Complete Flow
 
@@ -20,6 +20,44 @@ python 03_full_pipeline.py --enable-mlflow
 # 5. View results (optional)
 ./mlflow_ui.sh
 ```
+
+## 🧩 Plugin System - Enhanced ML Capabilities
+
+**Two powerful plugins available for advanced ML workflows:**
+
+### 🎯 Optuna HPO Plugin
+Automatically optimize hyperparameters with intelligent parameter space generation:
+
+```bash
+# Check plugin status
+python plugin_manager.py status
+
+# Generate HPO config from your data
+python plugin_manager.py generate-hpo --data data/your_data.csv --target your_target --mode custom
+
+# Use generated config in your pipeline by updating unified_config_v3.yaml
+```
+
+### 📊 Evidently Monitor Plugin  
+Detect data drift and monitor model performance:
+
+```bash
+# Run monitoring demo with synthetic drift
+python plugin_manager.py monitor-demo --reference-data data/your_data.csv --target your_target --drift-severity medium
+
+# Set up scheduled monitoring (production)
+python plugin_manager.py cron-setup --reference-data data/training_data.csv --current-data data/production_data.csv
+```
+
+**Key Features:**
+- 🔄 **Auto YAML Generation**: HPO configs generated from your data characteristics
+- 📈 **Smart Model Selection**: Recommends optimal models for your dataset 
+- 🚨 **Drift Detection**: Compare training vs production data automatically
+- 📱 **Slack Integration**: Get alerts when drift is detected
+- 🎭 **Synthetic Drift Demo**: Test monitoring with artificially generated drift
+- ⚙️ **Seamless Integration**: Works with existing DS-AutoAdvisor pipeline
+
+📖 **See [PLUGINS_README.md](PLUGINS_README.md) for complete plugin documentation**
 
 ---
 ## 📖 Step-by-Step Guide

@@ -457,6 +457,7 @@ else:
 - ✅ **Variance reduction** through averaging
 - ⚠️ **Computational cost** scales with k
 
+...
 ### **4.3 Hyperparameter Optimization**
 
 #### **Methods Available:**
@@ -471,6 +472,11 @@ else:
    - **Advantage:** More efficient for high-dimensional spaces
    - **Default:** 50 iterations
 
+3. **Optuna TPE + Pruning**
+   - **Approach:** Bayesian optimization using Tree-structured Parzen Estimator (TPE) with early stopping (pruning)
+   - **Advantage:** Efficient for complex, high-dimensional spaces; can skip poor candidates early
+   - **Limitation:** May underperform compared to grid/random search in some cases (see analysis below)
+
 **Search Spaces:**
 ```python
 # Example parameter spaces
@@ -481,6 +487,72 @@ random_forest_params = {
     'min_samples_leaf': [1, 2, 4]
 }
 ```
+
+---
+
+#### **HPO Performance Analysis: TPE vs Random/Grid Search**
+
+**Key Observations:**
+- TPE with pruning may sometimes yield lower performance than grid or random search, especially on small datasets or with aggressive pruning.
+- Random/grid search can outperform TPE if:
+  - The search space is small or discrete.
+  - The number of trials is low (TPE needs enough trials to model the parameter space).
+  - Pruning is too aggressive, causing promising candidates to be discarded early.
+  - The objective function is noisy or non-smooth.
+
+**Common Pitfalls:**
+- **Too Few Trials:** TPE needs enough evaluations to build a good surrogate model. Use at least 50–100 trials for moderate spaces.
+- **Aggressive Pruning:** Early stopping can discard candidates before their true potential is realized. Consider disabling or relaxing pruning for noisy objectives.
+- **Parameter Space Complexity:** TPE excels in continuous, high-dimensional spaces. For small or categorical grids, random/grid search may be better.
+- **Cross-Validation Noise:** High variance in CV scores can mislead the optimizer. Use more folds or repeated CV for stability.
+
+**Recommendations:**
+- For small or discrete parameter spaces, prefer grid or random search.
+- For large, continuous spaces, use TPE with moderate pruning and sufficient trials.
+- Always compare HPO methods on your data—sometimes simple random search is surprisingly effective.
+- Tune pruning aggressiveness and trial count in your YAML config for best results.
+
+**Example YAML Configurations:**
+```yaml
+optuna_hpo_settings:
+  sampler: "TPE"
+  pruner: "MedianPruner"
+  direction: "maximize"
+  n_startup_trials: 10
+  n_warmup_steps: 10
+  timeout_minutes: 30
+  study_name_suffix: "custom"
+```
+Or for robust random search:
+```yaml
+optuna_hpo_settings:
+  sampler: "Random"
+  pruner: "None"
+  direction: "maximize"
+  n_startup_trials: 0
+  n_warmup_steps: 0
+  timeout_minutes: 30
+  study_name_suffix: "random"
+```
+
+**Summary Table:**
+
+| Method         | Best For                | Pitfalls                       | Recommendations                |
+|----------------|------------------------|--------------------------------|--------------------------------|
+| Grid Search    | Small/discrete spaces  | Exponential growth             | Use for ≤3 parameters          |
+| Random Search  | High-dimensional       | May miss optimal regions       | Use ≥50 trials                 |
+| TPE + Pruning  | Large/continuous       | Needs enough trials, pruning   | Use ≥100 trials, tune pruning  |
+
+---
+
+**Quick Fixes:**
+- Increase number of trials for TPE.
+- Relax or disable pruning if results are unstable.
+- Use random search as a baseline for comparison.
+- Always validate HPO results with cross-validation and holdout sets.
+
+---
+
 
 ---
 

@@ -12,7 +12,7 @@ global:
   data_input_path: "data/telco_churn_data.csv"     # Default input data path
   target_column: "Churn"                            # Primary target column name
   target_column_variants: ["Churn", "Churn_binary_0", "Churn_encoded", "Churn_label"]  # Alternative target names
-  csv_delimiter: ","                                # CSV delimiter: ",", ";", "\t", "|"
+  csv_delimiter: ";"                                # CSV delimiter: ",", ";", "\t", "|"
   csv_encoding: "utf-8"                            # File encoding: "utf-8", "latin1", "cp1252"
   random_state: 42                                  # Global random seed for reproducibility
   output_base_dir: "pipeline_outputs"              # Base directory for all outputs
@@ -134,9 +134,19 @@ fast_mode:
     
     # === HYPERPARAMETER TUNING (FAST) ===
     enable_tuning: false                # Enable hyperparameter optimization (true/false) - FAST: disabled
-    tuning_method: "none"               # Options: "grid", "random", "bayesian", "none" - FAST: none
+    tuning_method: "none"               # Options: "grid", "random", "bayesian", "optuna", "none" - FAST: none
     tuning_iterations: 10               # Number of tuning iterations (10-500) - FAST: minimal
     tuning_cv_folds: 3                  # CV folds for tuning (3-10) - FAST: minimal
+    
+    # === OPTUNA HPO SETTINGS (FAST) ===
+    optuna_hpo_settings:
+      sampler: "TPE"                    # Optuna sampler: "TPE", "Random", "CmaEs" - FAST: TPE
+      pruner: "MedianPruner"           # Optuna pruner: "MedianPruner", "Hyperband", "SuccessiveHalving" - FAST: MedianPruner
+      direction: "maximize"             # Optimization direction: "maximize", "minimize" - FAST: maximize
+      n_startup_trials: 5               # Number of startup trials (5-20) - FAST: minimal
+      n_warmup_steps: 5                # Number of warmup steps (5-20) - FAST: minimal
+      timeout_minutes: 10               # HPO timeout in minutes (5-60) - FAST: short
+      study_name_suffix: "fast"         # Study name suffix - FAST: descriptive
     
     # === VALIDATION CONFIGURATION (FAST) ===
     cv_folds: 3                         # Cross-validation folds (3-10) - FAST: minimal
@@ -365,9 +375,19 @@ custom_mode:
       
     # === HYPERPARAMETER TUNING ===
     enable_tuning: true                 # Enable hyperparameter optimization (true/false)
-    tuning_method: "grid"               # Options: "grid", "random", "bayesian", "none"
+    tuning_method: "optuna"               # Options: "grid", "random", "bayesian", "optuna", "none"
     tuning_iterations: 50               # Number of tuning iterations (10-500)
     tuning_cv_folds: 5                  # CV folds for tuning (3-10)
+    
+    # === OPTUNA HPO SETTINGS ===
+    optuna_hpo_settings:
+      sampler: "TPE"                    # Optuna sampler: "TPE", "Random", "CmaEs"
+      pruner: "MedianPruner"           # Optuna pruner: "MedianPruner", "Hyperband", "SuccessiveHalving"
+      direction: "maximize"             # Optimization direction: "maximize", "minimize"
+      n_startup_trials: 10              # Number of startup trials (5-20)
+      n_warmup_steps: 10               # Number of warmup steps (5-20)
+      timeout_minutes: 30               # HPO timeout in minutes (15-120)
+      study_name_suffix: "custom"       # Study name suffix
     
     # === VALIDATION CONFIGURATION ===
     cv_folds: 5                         # Cross-validation folds (3-10)
@@ -477,6 +497,55 @@ infrastructure:
     plugin_dir: "plugins"                            # Plugin directory path
     auto_discovery: true                              # Auto-discover plugins (true/false)
     validation_required: true                        # Require plugin validation (true/false)
+    
+    # === OPTUNA HPO PLUGIN ===
+    optuna_hpo:
+      enabled: true                                   # Enable Optuna HPO plugin (true/false)
+      auto_yaml_generation: false                    # Auto-generate YAML configs (true/false) - DEPRECATED: Optuna handles best params automatically
+      integrate_with_training: true                  # Integrate with training stage (true/false)
+      integrate_with_evaluation: true                # Integrate with evaluation stage (true/false)
+      fallback_to_default: true                      # Fallback to default config if HPO fails (true/false)
+      output_recommendations: true                   # Output HPO recommendations (true/false)
+      settings:
+        default_iterations: 50                       # Default number of HPO iterations (20-200)
+        default_cv_folds: 5                         # Default CV folds for HPO (3-10)
+        default_sampler: "TPE"                      # Default sampler: "TPE", "Random", "CmaEs"
+        default_pruner: "MedianPruner"              # Default pruner: "MedianPruner", "Hyperband", "SuccessiveHalving"
+        storage_type: "sqlite"                       # Storage type: "sqlite", "memory"
+        study_name_prefix: "ds_autoadvisor"         # Study name prefix
+        timeout_minutes: 30                          # Timeout for HPO (15-120 minutes)
+        parallel_jobs: 1                            # Parallel jobs for HPO (1-8)
+        direction: "maximize"                        # Optimization direction: "maximize", "minimize"
+        n_startup_trials: 10                        # Number of startup trials for TPE sampler (5-20)
+        n_warmup_steps: 10                          # Number of warmup steps for pruning (5-20)
+    
+    # === EVIDENTLY MONITOR PLUGIN ===
+    evidently_monitor:
+      enabled: true                                   # Enable Evidently monitor plugin (true/false)
+      train_vs_production: true                      # Enable train vs production comparison (true/false)
+      drift_detection: true                          # Enable drift detection (true/false)
+      performance_monitoring: true                   # Enable performance monitoring (true/false)
+      html_reports: true                             # Generate HTML reports (true/false)
+      slack_integration: true                        # Enable Slack integration (true/false)
+      cron_support: true                             # Enable cron/scheduling support (true/false)
+      synthetic_drift_demo: true                     # Enable synthetic drift demo (true/false)
+      settings:
+        drift_thresholds:
+          data_drift: 0.5                           # Data drift threshold (0.1-0.9)
+          column_drift: 0.5                         # Column drift threshold (0.1-0.9)
+          missing_values: 0.1                       # Missing values threshold (0.05-0.3)
+        alert_config:
+          slack_webhook_url: null                    # Slack webhook URL (set by user)
+          slack_channel: "#alerts"                   # Slack channel for alerts
+          email_alerts: false                        # Enable email alerts (true/false)
+          alert_levels: ["INFO", "WARNING", "CRITICAL"]  # Alert severity levels
+        monitoring_schedule:
+          enabled: false                             # Enable scheduled monitoring (true/false)
+          frequency: "daily"                         # Frequency: "hourly", "daily", "weekly"
+          time: "02:00"                             # Time to run (HH:MM format)
+        report_retention:
+          enabled: true                              # Enable report retention (true/false)
+          retention_days: 30                        # Report retention period (7-365 days)
     
   # === METADATA STORAGE ===
   metadata:

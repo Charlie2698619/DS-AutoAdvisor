@@ -1,8 +1,8 @@
 # DS-AutoAdvisor 🚀
 
-**Smart ML Pipeline: From Raw CSV to Production-Ready Models in 3 Steps**
+**Smart ML Pipeline: From Raw CSV to Production-Ready Models in 3 Steps + Advanced Plugins**
 
-> Turn your messy data into clean, trained models with deployment-ready artifacts. Transparent, cacheable, and human-guided every step of the way.
+> Turn your messy data into clean, trained models with deployment-ready artifacts. Transparent, cacheable, and human-guided every step of the way. Enhanced with hyperparameter optimization and data drift monitoring.
 
 ## 🎯 What This Does For You
 
@@ -14,8 +14,10 @@
 - 🧪 **Fast iterative testing** (test cleaning/training separately without full reruns)
 - 📦 **Production packaging** (deployment scripts, docs, APIs automatically generated)
 - 📊 **Full traceability** (MLflow tracking + structured JSON outputs)
+- � **Smart HPO Integration** (automatic hyperparameter optimization with Optuna)
+- 📊 **Data Drift Monitoring** (production vs training data monitoring with Evidently)
 
-## 🏗️ Simple Architecture
+## 🏗️ Architecture
 
 ```
 📊 Raw Data
@@ -27,19 +29,26 @@
 🧪 Step 2: Test Pipeline Stages (cleaning → training → evaluation)
     ↓
 📦 Step 3: Package Best Models (deployment scripts + docs + APIs)
+    ↓
+🧩 Optional: Advanced Plugins (HPO + Monitoring)
 ```
+
+### 🧩 Plugin System
+- **🎯 Optuna HPO**: Intelligent hyperparameter optimization with auto-generated parameter spaces
+- **📊 Evidently Monitor**: Data drift detection and performance monitoring with Slack integration
 
 ## 📋 Table of Contents
 1. [Quick Start (5 Minutes)](#quick-start)
-2. [The 3-Step Workflow](#workflow)
-3. [Important Manual Steps](#manual-steps)
-4. [What You Get From Each Step](#outputs)
-5. [Common Use Cases](#use-cases)
-6. [Configuration Guide](#configuration)
-7. [MLflow Tracking](#mlflow)
-8. [Design Choices & Limitations](#limitations)
-9. [Troubleshooting](#troubleshooting)
-10. [Future Features](#roadmap)
+2. [Plugin System](#plugin-system)
+3. [The 3-Step Workflow](#workflow)
+4. [Important Manual Steps](#manual-steps)
+5. [What You Get From Each Step](#outputs)
+6. [Common Use Cases](#use-cases)
+7. [Configuration Guide](#configuration)
+8. [MLflow Tracking](#mlflow)
+9. [Design Choices & Limitations](#limitations)
+10. [Troubleshooting](#troubleshooting)
+11. [Future Features](#roadmap)
 
 ---
 ## Quick Start
@@ -67,6 +76,59 @@ python 03_full_pipeline.py --enable-mlflow
 **That's it!** Your models, deployment scripts, and documentation are ready.
 
 ---
+
+## 🧩 Plugin System
+
+**Enhance your pipeline with advanced ML capabilities:**
+
+### 🎯 Optuna HPO Plugin
+Intelligent hyperparameter optimization that learns from your data:
+
+```bash
+# Check plugin status
+python plugin_manager.py status
+
+# Generate optimized HPO config for your dataset
+python plugin_manager.py generate-hpo --data data/your_data.csv --target your_target --mode custom
+
+# Generated config includes model recommendations and parameter spaces
+```
+
+**Features:**
+- 📊 **Auto Analysis**: Analyzes dataset characteristics (size, features, target type)
+- 🤖 **Smart Recommendations**: Suggests optimal models for your data
+- ⚙️ **Parameter Spaces**: Pre-configured hyperparameter ranges for 10+ algorithms
+- 🔄 **YAML Integration**: Seamlessly integrates with existing configuration system
+- 📈 **TPE Sampler**: Uses Tree-structured Parzen Estimator for efficient optimization
+
+### 📊 Evidently Monitor Plugin
+Production-ready data drift monitoring:
+
+```bash
+# Run monitoring demo with synthetic drift
+python plugin_manager.py monitor-demo --reference-data data/your_data.csv --target your_target --drift-severity medium
+
+# Set up production monitoring
+python plugin_manager.py cron-setup --reference-data data/training_data.csv --current-data data/production_data.csv
+```
+
+**Features:**
+- 🚨 **Drift Detection**: Statistical tests for data and target drift
+- 📊 **HTML Reports**: Beautiful, interactive drift analysis reports  
+- 📱 **Slack Integration**: Real-time alerts when drift is detected
+- 🎭 **Synthetic Demos**: Test monitoring with artificially generated drift
+- ⏰ **Cron Support**: Schedule automated monitoring checks
+- 📈 **Performance Tracking**: Monitor model performance degradation
+
+**Setup Instructions:**
+1. Both plugins are pre-configured in `config/unified_config_v3.yaml`
+2. Dependencies are included in the project (`optuna`, `evidently`)
+3. Use `plugin_manager.py` CLI for all plugin operations
+
+📖 **Complete Guide:** See [PLUGINS_README.md](PLUGINS_README.md) for detailed documentation
+
+---
+
 ## The 3-Step Workflow
 
 ### 🔍 Step 1: Data Discovery & Configuration
@@ -443,29 +505,37 @@ python 03_full_pipeline.py --enable-mlflow
 
 ### 🎯 Short Term (Next Release)
 - **Optional retraining in Step 3** (for up-to-date metrics)
-- **Advanced hyperparameter optimization** (Bayesian, Optuna)
-- **Data drift detection** (automatic discovery refresh)
-- **FastAPI deployment template** (replaces Flask)
+- **Enhanced plugin system** (more monitoring metrics, additional HPO algorithms)
+- **Advanced deployment templates** (FastAPI, containerization)
+- **Real-time monitoring dashboards** (live drift visualization)
 
 ### 🚀 Medium Term (6 months)
 - **Model registry integration** (automatic versioning/promotion)
 - **Fairness & bias detection** (ethical AI metrics)
 - **Feature importance caching** (SHAP explanations)
 - **CI/CD templates** (GitHub Actions workflows)
+- **Cloud monitoring integration** (AWS CloudWatch, Azure Monitor)
 
 ### 🏭 Long Term (1 year)
 - **Streaming data support** (Kafka integration)
 - **Feature store abstraction** (Feast integration)
-- **Production monitoring** (data/model drift alerts)
+- **Advanced production monitoring** (model performance tracking)
 - **ONNX export support** (cross-platform deployment)
 - **Security hardening** (auth, input validation, audit)
 - **Parallel processing** (multi-core/distributed execution)
 
 ### 🤝 Community Features
-- **Plugin system** (custom transformations)
+- **Extended plugin marketplace** (community-contributed plugins)
 - **Model marketplace** (pre-trained models)
 - **Template library** (industry-specific configs)
 - **Integration gallery** (cloud platforms, databases)
+
+### ✅ Recently Completed
+- **🎯 Optuna HPO Plugin** - Intelligent hyperparameter optimization with auto-config generation
+- **📊 Evidently Monitor Plugin** - Data drift detection and performance monitoring
+- **🔧 Plugin Manager CLI** - Easy plugin management and configuration
+- **📱 Slack Integration** - Real-time monitoring alerts
+- **🎭 Synthetic Drift Demo** - Testing capabilities with artificial drift
 
 ---
 ## Summary: Why This Design Works
@@ -475,8 +545,9 @@ python 03_full_pipeline.py --enable-mlflow
 ✅ **Reproducible:** Version-controlled configs, MLflow tracking  
 ✅ **Production-ready:** Deployment scripts, docs, APIs included  
 ✅ **Extensible:** Easy to add stages, models, or deployment targets  
+✅ **Enhanced:** Advanced HPO and monitoring capabilities out-of-the-box
 
-**Perfect for:** Data scientists who want fast iteration with full control over their ML pipeline.
+**Perfect for:** Data scientists who want fast iteration with full control over their ML pipeline, enhanced with production-grade optimization and monitoring.
 
 ---
 

@@ -66,6 +66,24 @@ try:
 except ImportError:
     HAS_BUSINESS_FEATURES = False
     print("⚠️ Business features not available - continuing with standard training")
+    
+    # Create dummy classes for type hints
+    class FeatureSelectionResult:
+        def __init__(self):
+            self.selected_features = []
+            self.feature_scores = {}
+            self.selection_method = "fallback"
+    
+    class BusinessFeatureSelector:
+        def __init__(self, *args, **kwargs):
+            pass
+    
+    class BusinessKPITracker:
+        def __init__(self, *args, **kwargs):
+            pass
+    
+    def calculate_business_value(*args, **kwargs):
+        return 0.0
 
 warnings.filterwarnings('ignore')
 

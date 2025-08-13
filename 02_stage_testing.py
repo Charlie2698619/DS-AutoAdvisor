@@ -541,6 +541,70 @@ class StageTester:
             sys.path.append(str(project_root / "src" / "4_model_training"))
             from trainer import EnhancedModelTrainer, TrainerConfig
             
+            # 🔌 Check for plugin integration
+            print("🔌 Checking for plugin integration...")
+            try:
+                from src.plugins.integration_helper import get_plugin_helper
+                plugin_helper = get_plugin_helper(self.config_manager)
+                
+                # Check if HPO should be used
+                should_use_hpo = plugin_helper.should_use_optuna_hpo(self.mode)
+                print(f"🎯 HPO plugin enabled: {should_use_hpo}")
+                
+                if should_use_hpo:
+                    print("🔧 Preparing HPO integration...")
+                    
+                    # Generate HPO config if needed
+                    X = df.drop(columns=[target_column])
+                    y = df[target_column]
+                    
+                    hpo_config_path = plugin_helper.generate_hpo_config_if_needed(
+                        X, y, self.mode, str(self.testing_outputs['base'])
+                    )
+                    
+                    if hpo_config_path:
+                        print(f"✅ HPO config generated: {Path(hpo_config_path).name}")
+                    
+                    # Get HPO manager for training
+                    hpo_manager = plugin_helper.get_optuna_hpo_manager(str(self.testing_outputs['base']))
+                    
+                    if hpo_manager:
+                        print("🚀 Starting HPO-powered training...")
+                        
+                        # Use HPO workflow with YAML configuration instead of hardcoded values
+                        try:
+                            hpo_results = hpo_manager.run_optimization_workflow(
+                                X, y, 
+                                mode=self.mode  # Pass mode to use YAML config settings
+                            )
+                            
+                            if hpo_results and 'best_model' in hpo_results:
+                                print(f"🏆 HPO completed successfully!")
+                                print(f"   Best model: {hpo_results['best_model']}")
+                                print(f"   Best score: {hpo_results.get('best_score', 0):.4f}")
+                                print(f"   Total trials: {hpo_results.get('total_trials', 0)}")
+                                
+                                # Save HPO results
+                                hpo_report_path = str(self.testing_outputs['models'] / "hpo_training_report.json")
+                                with open(hpo_report_path, 'w') as f:
+                                    import json
+                                    json.dump(hpo_results, f, indent=2, default=str)
+                                
+                                return True
+                            else:
+                                print("⚠️ HPO workflow completed but no valid results, falling back to standard training")
+                        
+                        except Exception as e:
+                            print(f"⚠️ HPO workflow failed ({e}), falling back to standard training")
+                    
+            except ImportError:
+                print("📋 Plugin system not available, using standard training")
+            except Exception as e:
+                print(f"⚠️ Plugin integration failed ({e}), using standard training")
+            
+            # Standard training fallback
+            print("🔄 Starting standard model training...")
+            
             # Create trainer config from mode-specific YAML config
             training_config = TrainerConfig.from_yaml_config({'model_training': config})
             
