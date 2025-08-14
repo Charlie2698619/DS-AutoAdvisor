@@ -498,7 +498,7 @@ custom_mode:
       # === MULTICOLLINEARITY TESTING ===
       vif_threshold: 9                            # VIF threshold for multicollinearity (5.0-50.0)
       correlation_threshold: 0.90                    # Correlation threshold (0.8-0.99)
-      max_features_vif: 10                           # Max features for VIF calculation (10-100)
+      max_features_vif: 30                           # Max features for VIF calculation (10-100)
       
       # === CLASS BALANCE TESTING ===
       imbalance_threshold: 0.85                       # Threshold for class imbalance (0.6-0.95)

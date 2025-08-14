@@ -202,66 +202,280 @@ class EnhancedAssumptionChecker:
         df: pd.DataFrame,
         features: List[str]
     ) -> Dict[str, Any]:
-        """Scalable multicollinearity checking with performance optimizations"""
+        """Enhanced multicollinearity checking with rich metadata for manual decision-making"""
         result = {
             "passed": True, 
-            "high_vif": [], 
-            "high_correlation": [],
-            "vif_table": [], 
-            "correlation_matrix": {},
+            "high_vif_features": [], 
+            "high_correlation_pairs": [],
+            "vif_analysis": {
+                "all_features": [],
+                "risk_categories": {
+                    "low_risk": [],      # VIF < 5
+                    "moderate_risk": [], # 5 <= VIF < 10  
+                    "high_risk": [],     # VIF >= 10
+                    "extreme_risk": []   # VIF >= 20
+                }
+            },
+            "correlation_analysis": {
+                "matrix": {},
+                "risk_pairs": {
+                    "moderate": [],      # 0.7 <= |corr| < 0.9
+                    "high": [],          # 0.9 <= |corr| < 0.95
+                    "extreme": []        # |corr| >= 0.95
+                },
+                "feature_risk_scores": {}  # Aggregated risk per feature
+            },
+            "recommendations": {
+                "safe_to_keep": [],
+                "review_required": [],
+                "strong_candidates_for_removal": [],
+                "feature_relationships": {}
+            },
+            "metadata": {
+                "n_features": len(features),
+                "n_samples_used": 0,
+                "computation_notes": []
+            },
             "error": None
         }
         
         try:
             X = df[features].dropna()
+            result["metadata"]["n_samples_used"] = len(X)
             
             if X.shape[1] < 2:
                 result["passed"] = True
+                result["metadata"]["computation_notes"].append("Less than 2 features - no multicollinearity possible")
                 return result
             
-            # Step 1: Quick correlation check first (faster)
-            corr_matrix = X.corr().abs()
-            high_corr_pairs = []
+            # PHASE 1: Comprehensive Correlation Analysis
+            corr_matrix = X.corr()
+            result["correlation_analysis"]["matrix"] = corr_matrix.to_dict()
+            
+            # Analyze correlation pairs and categorize by risk
+            feature_corr_counts = {feat: {"moderate": 0, "high": 0, "extreme": 0} for feat in features}
+            
             for i in range(len(corr_matrix.columns)):
                 for j in range(i+1, len(corr_matrix.columns)):
-                    if corr_matrix.iloc[i, j] > self.config.correlation_threshold:
-                        high_corr_pairs.append({
-                            "feature1": corr_matrix.columns[i],
-                            "feature2": corr_matrix.columns[j],
-                            "correlation": float(corr_matrix.iloc[i, j])
-                        })
+                    feat1, feat2 = corr_matrix.columns[i], corr_matrix.columns[j]
+                    corr_val = abs(corr_matrix.iloc[i, j])
+                    
+                    pair_info = {
+                        "feature1": feat1,
+                        "feature2": feat2, 
+                        "correlation": float(corr_val),
+                        "interpretation": self._interpret_correlation(corr_val)
+                    }
+                    
+                    # Categorize correlation risk
+                    if corr_val >= 0.95:
+                        result["correlation_analysis"]["risk_pairs"]["extreme"].append(pair_info)
+                        feature_corr_counts[feat1]["extreme"] += 1
+                        feature_corr_counts[feat2]["extreme"] += 1
+                    elif corr_val >= 0.9:
+                        result["correlation_analysis"]["risk_pairs"]["high"].append(pair_info)
+                        feature_corr_counts[feat1]["high"] += 1
+                        feature_corr_counts[feat2]["high"] += 1
+                    elif corr_val >= 0.7:
+                        result["correlation_analysis"]["risk_pairs"]["moderate"].append(pair_info)
+                        feature_corr_counts[feat1]["moderate"] += 1
+                        feature_corr_counts[feat2]["moderate"] += 1
             
-            result["high_correlation"] = high_corr_pairs
-            result["correlation_matrix"] = corr_matrix.to_dict()
+            # Calculate feature-level correlation risk scores
+            for feat in features:
+                counts = feature_corr_counts[feat]
+                risk_score = (counts["extreme"] * 3 + counts["high"] * 2 + counts["moderate"] * 1)
+                result["correlation_analysis"]["feature_risk_scores"][feat] = {
+                    "risk_score": risk_score,
+                    "extreme_correlations": counts["extreme"],
+                    "high_correlations": counts["high"], 
+                    "moderate_correlations": counts["moderate"],
+                    "risk_level": self._categorize_correlation_risk(risk_score)
+                }
             
-            # Step 2: VIF calculation (limit features for performance)
+            # PHASE 2: Comprehensive VIF Analysis
             if X.shape[1] <= self.config.max_features_vif:
-                # Apply sampling for large datasets
+                # Apply sampling for large datasets while preserving relationships
                 if self.config.chunk_size and len(X) > self.config.chunk_size:
-                    X = X.sample(n=self.config.chunk_size, random_state=42)
-                    result["vif_note"] = f"VIF calculated on sample of {len(X)} rows"
+                    X_sample = X.sample(n=self.config.chunk_size, random_state=42)
+                    result["metadata"]["computation_notes"].append(f"VIF calculated on sample of {len(X_sample)} rows")
+                else:
+                    X_sample = X
                 
-                vif_data = []
-                for i, col in enumerate(X.columns):
+                # Calculate VIF for ALL features
+                for i, feat in enumerate(X_sample.columns):
                     try:
-                        vif_value = variance_inflation_factor(X.values, i)
-                        vif_data.append({"feature": col, "VIF": float(vif_value)})
-                        if vif_value > self.config.vif_threshold:
-                            result["high_vif"].append(col)
+                        vif_value = variance_inflation_factor(X_sample.values, i)
+                        
+                        vif_info = {
+                            "feature": feat,
+                            "vif": float(vif_value) if not np.isinf(vif_value) else "infinite",
+                            "risk_level": self._categorize_vif_risk(vif_value),
+                            "interpretation": self._interpret_vif(vif_value),
+                            "r_squared_with_others": (vif_value - 1) / vif_value if vif_value > 1 else 0
+                        }
+                        
+                        result["vif_analysis"]["all_features"].append(vif_info)
+                        
+                        # Categorize by risk level
+                        if vif_value >= 20:
+                            result["vif_analysis"]["risk_categories"]["extreme_risk"].append(feat)
+                        elif vif_value >= self.config.vif_threshold:  # Default 10
+                            result["vif_analysis"]["risk_categories"]["high_risk"].append(feat)
+                            result["high_vif_features"].append(feat)
+                        elif vif_value >= 5:
+                            result["vif_analysis"]["risk_categories"]["moderate_risk"].append(feat)
+                        else:
+                            result["vif_analysis"]["risk_categories"]["low_risk"].append(feat)
+                            
                     except Exception as e:
-                        vif_data.append({"feature": col, "VIF": None, "error": str(e)})
-                
-                result["vif_table"] = vif_data
+                        vif_info = {
+                            "feature": feat,
+                            "vif": None,
+                            "error": str(e),
+                            "risk_level": "unknown",
+                            "interpretation": "VIF calculation failed"
+                        }
+                        result["vif_analysis"]["all_features"].append(vif_info)
+                        result["metadata"]["computation_notes"].append(f"VIF failed for {feat}: {str(e)}")
             else:
-                result["vif_note"] = f"VIF skipped: too many features ({X.shape[1]} > {self.config.max_features_vif})"
+                result["metadata"]["computation_notes"].append(
+                    f"VIF skipped: too many features ({X.shape[1]} > {self.config.max_features_vif}). "
+                    "Consider feature selection or increase max_features_vif."
+                )
             
-            result["passed"] = len(result["high_vif"]) == 0 and len(high_corr_pairs) == 0
+            # PHASE 3: Generate Smart Recommendations
+            self._generate_multicollinearity_recommendations(result)
+            
+            # Update legacy fields for backward compatibility
+            result["high_correlation"] = result["correlation_analysis"]["risk_pairs"]["extreme"]
+            result["vif_table"] = result["vif_analysis"]["all_features"]
+            result["correlation_matrix"] = result["correlation_analysis"]["matrix"]
+            
+            # Overall pass/fail based on extreme cases only
+            extreme_vif = len(result["vif_analysis"]["risk_categories"]["extreme_risk"])
+            extreme_corr = len(result["correlation_analysis"]["risk_pairs"]["extreme"])
+            result["passed"] = extreme_vif == 0 and extreme_corr == 0
             
         except Exception as e:
             result["error"] = str(e)
             result["passed"] = False
             
         return result
+    
+    def _interpret_correlation(self, corr_val: float) -> str:
+        """Interpret correlation strength"""
+        if corr_val >= 0.95:
+            return "Nearly perfect - strong redundancy"
+        elif corr_val >= 0.9:
+            return "Very strong - likely redundant"
+        elif corr_val >= 0.7:
+            return "Strong - monitor for multicollinearity"
+        elif corr_val >= 0.5:
+            return "Moderate - acceptable"
+        else:
+            return "Weak - no concern"
+    
+    def _categorize_correlation_risk(self, risk_score: int) -> str:
+        """Categorize overall correlation risk for a feature"""
+        if risk_score >= 3:
+            return "extreme"
+        elif risk_score >= 2:
+            return "high" 
+        elif risk_score >= 1:
+            return "moderate"
+        else:
+            return "low"
+    
+    def _categorize_vif_risk(self, vif_value: float) -> str:
+        """Categorize VIF risk level"""
+        if np.isinf(vif_value) or vif_value >= 20:
+            return "extreme"
+        elif vif_value >= 10:
+            return "high"
+        elif vif_value >= 5:
+            return "moderate"
+        else:
+            return "low"
+    
+    def _interpret_vif(self, vif_value: float) -> str:
+        """Interpret VIF value"""
+        if np.isinf(vif_value):
+            return "Perfect multicollinearity - feature is linear combination of others"
+        elif vif_value >= 20:
+            return "Extreme multicollinearity - serious concern"
+        elif vif_value >= 10:
+            return "High multicollinearity - consider removal"
+        elif vif_value >= 5:
+            return "Moderate multicollinearity - monitor"
+        else:
+            return "Low multicollinearity - acceptable"
+    
+    def _generate_multicollinearity_recommendations(self, result: Dict) -> None:
+        """Generate intelligent recommendations for feature management"""
+        recs = result["recommendations"]
+        
+        # Features that are safe to keep
+        safe_features = result["vif_analysis"]["risk_categories"]["low_risk"]
+        recs["safe_to_keep"] = safe_features
+        
+        # Features requiring review (moderate risk)
+        moderate_vif = result["vif_analysis"]["risk_categories"]["moderate_risk"]
+        moderate_corr_features = [
+            feat for feat, info in result["correlation_analysis"]["feature_risk_scores"].items()
+            if info["risk_level"] == "moderate"
+        ]
+        recs["review_required"] = list(set(moderate_vif + moderate_corr_features))
+        
+        # Strong candidates for removal (high/extreme risk)
+        high_risk_vif = (result["vif_analysis"]["risk_categories"]["high_risk"] + 
+                        result["vif_analysis"]["risk_categories"]["extreme_risk"])
+        high_risk_corr = [
+            feat for feat, info in result["correlation_analysis"]["feature_risk_scores"].items()
+            if info["risk_level"] in ["high", "extreme"]
+        ]
+        recs["strong_candidates_for_removal"] = list(set(high_risk_vif + high_risk_corr))
+        
+        # Detailed feature relationships for manual decision-making
+        for feat in result["correlation_analysis"]["feature_risk_scores"].keys():
+            feat_info = {
+                "vif_risk": "unknown",
+                "correlation_risk": result["correlation_analysis"]["feature_risk_scores"][feat]["risk_level"],
+                "related_features": [],
+                "decision_guidance": ""
+            }
+            
+            # Add VIF info if available
+            vif_data = [v for v in result["vif_analysis"]["all_features"] if v["feature"] == feat]
+            if vif_data:
+                feat_info["vif_risk"] = vif_data[0].get("risk_level", "unknown")
+                feat_info["vif_value"] = vif_data[0].get("vif", "unknown")
+            
+            # Find related features
+            all_pairs = (result["correlation_analysis"]["risk_pairs"]["moderate"] +
+                        result["correlation_analysis"]["risk_pairs"]["high"] + 
+                        result["correlation_analysis"]["risk_pairs"]["extreme"])
+            
+            related = []
+            for pair in all_pairs:
+                if pair["feature1"] == feat:
+                    related.append({"feature": pair["feature2"], "correlation": pair["correlation"]})
+                elif pair["feature2"] == feat:
+                    related.append({"feature": pair["feature1"], "correlation": pair["correlation"]})
+            
+            feat_info["related_features"] = sorted(related, key=lambda x: x["correlation"], reverse=True)
+            
+            # Generate decision guidance
+            if feat_info["vif_risk"] == "extreme" or feat_info["correlation_risk"] == "extreme":
+                feat_info["decision_guidance"] = "Strong candidate for removal - very high redundancy"
+            elif feat_info["vif_risk"] == "high" or feat_info["correlation_risk"] == "high":
+                feat_info["decision_guidance"] = "Consider removal or feature engineering"
+            elif feat_info["vif_risk"] == "moderate" or feat_info["correlation_risk"] == "moderate":
+                feat_info["decision_guidance"] = "Monitor - may need attention in some models"
+            else:
+                feat_info["decision_guidance"] = "Safe to keep - low multicollinearity risk"
+            
+            recs["feature_relationships"][feat] = feat_info
     
     def check_linearity(
         self,
@@ -368,15 +582,43 @@ class EnhancedAssumptionChecker:
         # Multicollinearity violations
         if results.get("multicollinearity"):
             mc_result = results["multicollinearity"]
-            if mc_result.get("high_vif"):
+            
+            # Use new enhanced structure
+            if mc_result.get("high_vif_features"):
                 recommendations.append(
-                    f"⚠️ High VIF features: {mc_result['high_vif']}. "
-                    "Consider removing or combining correlated features."
+                    f"⚠️ High VIF features detected: {mc_result['high_vif_features']}. "
+                    "These features have VIF ≥ 10, indicating high multicollinearity risk."
                 )
-            if mc_result.get("high_correlation"):
+            
+            # Enhanced recommendations with risk categorization
+            if mc_result.get("recommendations"):
+                recs = mc_result["recommendations"]
+                
+                if recs.get("strong_candidates_for_removal"):
+                    recommendations.append(
+                        f"🔴 Strong removal candidates: {recs['strong_candidates_for_removal']}. "
+                        "These features show extreme multicollinearity (VIF ≥ 20 or correlation ≥ 0.95)."
+                    )
+                
+                if recs.get("review_required"):
+                    recommendations.append(
+                        f"🟡 Features requiring review: {recs['review_required']}. "
+                        "Moderate multicollinearity detected - consider for specific models."
+                    )
+                
+                if recs.get("safe_to_keep"):
+                    recommendations.append(
+                        f"🟢 Low-risk features (safe to keep): {len(recs['safe_to_keep'])} features "
+                        "show minimal multicollinearity concerns."
+                    )
+            
+            # Provide specific guidance based on correlation analysis
+            corr_analysis = mc_result.get("correlation_analysis", {})
+            if corr_analysis.get("risk_pairs", {}).get("extreme"):
+                extreme_pairs = corr_analysis["risk_pairs"]["extreme"]
                 recommendations.append(
-                    f"🔗 High correlation pairs detected. "
-                    "Consider dimensionality reduction (PCA) or feature selection."
+                    f"🔗 Extreme correlation pairs found: {len(extreme_pairs)} pairs with |correlation| ≥ 0.95. "
+                    "Consider feature selection, PCA, or domain-specific feature engineering."
                 )
         
         # Homoscedasticity violations
