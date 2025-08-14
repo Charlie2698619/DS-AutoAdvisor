@@ -331,6 +331,25 @@ y = √x           # Requires x ≥ 0
 y = 1/x          # Requires x ≠ 0
 ```
 
+#### **Transformation Method Comparison**
+
+| Transformation   | Purpose                                      | Robust to         | Best for                      |
+|------------------|----------------------------------------------|-------------------|-------------------------------|
+| **log**          | Reduce right skew, stabilize variance        | Not robust to 0s  | Positive, highly skewed data  |
+| **log1p**        | Like log, but handles zeros                  | Not robust to 0s  | Data with zeros, mild skew    |
+| **sqrt**         | Reduce moderate skew, compress range         | Not robust to negatives | Count data, moderate skew |
+| **square**       | Amplify differences, increase spread         | Not robust to outliers | Emphasizing large values   |
+| **reciprocal**   | Invert scale, reduce impact of large values  | Not robust to zeros | Rates, ratios, positive data |
+| **boxcox**       | Normalize distribution, stabilize variance   | Not robust to negatives/zeros | Positive, non-normal data |
+| **yeojohnson**   | Normalize, stabilize variance (negatives ok) | Robust to negatives | Non-normal, mixed sign data  |
+| **polynomial**   | Model non-linear relationships               | Not robust to outliers | Feature engineering         |
+
+**Notes:**
+- For log/log1p/boxcox, input must be positive (log1p allows zero).
+- Yeo-Johnson works for both positive and negative values.
+- Sqrt and reciprocal require non-negative/non-zero input.
+- Polynomial transformation can increase model complexity and risk of overfitting.
+
 ### **2.4 Comprehensive Encoding Strategies**
 
 #### **Categorical Encoding Methods:**
@@ -938,6 +957,250 @@ This comprehensive analysis ensures that users understand every statistical meth
 - ✅ **One-Hot:** <20 categories (configurable)
 - ⚠️ **High Cardinality:** >50 categories need special handling
 - ❌ **Avoid One-Hot:** >100 categories
+
+### **2.4 Feature Engineering Methods**
+
+Feature engineering methods such as binning, interaction features, polynomial features, date extraction, encoding, and text vectorization are used to enhance model performance and interpretability. The following table summarizes the main feature engineering techniques available in the pipeline:
+
+| Method                | Purpose                                                                 | Robust to                | Best for                                      |
+|-----------------------|------------------------------------------------------------------------|--------------------------|------------------------------------------------|
+| **Binning (equal_width, equal_frequency, quantile, kmeans)** | Discretize continuous variables, reduce noise, handle non-linearity | Outliers (quantile, kmeans), non-normality     | Tree models, interpretability, handling skewed data |
+| **Interaction Features**  | Capture relationships between variables, model non-additive effects     | Feature scaling, encoding | Complex patterns, boosting model accuracy      |
+| **Polynomial Features**   | Model non-linear relationships, increase feature space                  | Outliers (with scaling)   | Linear models, capturing curvature            |
+| **Date Extraction**       | Extract temporal features (year, month, day, etc.)                     | Missing values, format    | Time series, seasonality, trend analysis       |
+| **Encoding (onehot, label, ordinal, target, mean)** | Convert categorical to numeric, handle high cardinality              | Unseen categories (target/mean), scaling       | Categorical variables, boosting, tree models        |
+| **Text Vectorization (tfidf, count, hash)** | Convert text to numeric, capture semantic meaning                     | Noise, rare words         | NLP tasks, text classification                |
+| **Feature Selection**     | Reduce dimensionality, remove redundant/irrelevant features            | Multicollinearity         | High-dimensional data, improving generalization|
+
+#### **Detailed Feature Engineering Methods:**
+
+**1. Binning Methods**
+```python
+# Equal Width Binning
+df[f"{col_name}_binned"] = pd.cut(df[col_name], bins=n_bins, labels=False)
+
+# Equal Frequency Binning  
+df[f"{col_name}_binned"] = pd.qcut(df[col_name], q=n_bins, labels=False)
+
+# Quantile-based Binning
+quantiles = np.linspace(0, 1, n_bins + 1)
+df[f"{col_name}_binned"] = pd.cut(df[col_name], bins=df[col_name].quantile(quantiles).values)
+
+# KMeans-based Binning
+kmeans = KMeans(n_clusters=n_bins)
+df[f"{col_name}_binned"] = kmeans.fit_predict(df[col_name].values.reshape(-1, 1))
+```
+
+**Properties:**
+- **Purpose:** Convert continuous variables to categorical, reduce noise, handle non-linear relationships
+- **Configuration:** `binning: "equal_width"/"equal_frequency"/"quantile"/"kmeans"`, `n_bins: 5` (default)
+- **Best for:** Tree-based models, interpretability, handling skewed distributions
+
+**2. Feature Interactions**
+```python
+# Multiplicative Interactions
+df[f"{col1}_{col2}_interaction"] = df[col1] * df[col2]
+
+# Additive Interactions  
+df[f"{col1}_{col2}_sum"] = df[col1] + df[col2]
+
+# Ratio Interactions
+df[f"{col1}_{col2}_ratio"] = df[col1] / (df[col2] + 1e-8)  # Avoid division by zero
+```
+
+**Properties:**
+- **Purpose:** Capture non-additive relationships between features
+- **Configuration:** `feature_interactions: ["col1", "col2", "col3"]`
+- **Best for:** Complex patterns, boosting algorithms, non-linear relationships
+
+**3. Date Feature Extraction**
+```python
+# Temporal Features
+df[f"{col_name}_year"] = df[col_name].dt.year
+df[f"{col_name}_month"] = df[col_name].dt.month
+df[f"{col_name}_dayofweek"] = df[col_name].dt.dayofweek
+df[f"{col_name}_quarter"] = df[col_name].dt.quarter
+df[f"{col_name}_is_weekend"] = (df[col_name].dt.dayofweek >= 5).astype(int)
+```
+
+**Properties:**
+- **Purpose:** Extract meaningful temporal patterns from datetime columns
+- **Configuration:** `extract_date_features: ["year", "month", "day", "dayofweek", "quarter", "is_weekend", "hour", "minute"]`
+- **Best for:** Time series analysis, seasonality detection, trend modeling
+
+Each method can be configured in the pipeline YAML or via column-specific settings. See the configuration guide for details on how to enable or customize these techniques.
+
+### **2.5 Data Type Conversion & Validation**
+
+The pipeline provides comprehensive data type conversion and validation capabilities to ensure data quality and consistency.
+
+#### **Data Type Conversion Methods:**
+
+| Target Type | Purpose | Configuration | Best for |
+|-------------|---------|---------------|----------|
+| **int** | Convert to integer with null handling | `dtype_conversion: "int"` | Numeric IDs, counts, ordinal data |
+| **float** | Convert to floating point | `dtype_conversion: "float"` | Continuous numerical data |
+| **str** | Convert to string | `dtype_conversion: "str"` | Text data, mixed-type columns |
+| **bool** | Convert to boolean | `dtype_conversion: "bool"` | Binary flags, yes/no data |
+| **category** | Convert to categorical | `dtype_conversion: "category"` | Memory optimization, ordered categories |
+| **datetime** | Convert to datetime | `dtype_conversion: "datetime"` | Date/time data with format specification |
+
+#### **Data Validation Constraints:**
+
+```python
+# Value Constraints Configuration
+value_constraints:
+  min_value: 0          # Minimum allowed value
+  max_value: 100        # Maximum allowed value
+  allowed_values: [1, 2, 3, 4, 5]  # Explicit allowed values
+  regex_pattern: "^[A-Z]{2}[0-9]{4}$"  # Pattern matching
+```
+
+**Properties:**
+- **Purpose:** Ensure data quality, enforce business rules, prevent invalid data
+- **Robust to:** Format inconsistencies, invalid entries
+- **Best for:** Critical business data, regulatory compliance
+
+### **2.6 Text and String Cleaning**
+
+Comprehensive text processing capabilities for cleaning and standardizing string data.
+
+#### **Text Operations Available:**
+
+| Operation | Purpose | Example | Configuration |
+|-----------|---------|---------|---------------|
+| **strip** | Remove leading/trailing whitespace | `" hello " → "hello"` | `text_operations: ["strip"]` |
+| **lower** | Convert to lowercase | `"Hello" → "hello"` | `text_operations: ["lower"]` |
+| **upper** | Convert to uppercase | `"hello" → "HELLO"` | `text_operations: ["upper"]` |
+| **title** | Title case conversion | `"hello world" → "Hello World"` | `text_operations: ["title"]` |
+| **remove_digits** | Remove all digits | `"abc123" → "abc"` | `text_operations: ["remove_digits"]` |
+| **remove_punctuation** | Remove punctuation | `"hello!" → "hello"` | `text_operations: ["remove_punctuation"]` |
+| **remove_extra_spaces** | Normalize whitespace | `"a  b" → "a b"` | `text_operations: ["remove_extra_spaces"]` |
+
+#### **Advanced Text Processing:**
+
+```python
+# Regex-based replacements
+regex_replace:
+  "\\d{4}-\\d{2}-\\d{2}": "DATE_PLACEHOLDER"  # Replace dates
+  "[A-Z]{2}\\d{4}": "CODE_PLACEHOLDER"        # Replace codes
+```
+
+**Properties:**
+- **Purpose:** Standardize text data, remove noise, prepare for analysis
+- **Configuration:** `text_cleaning: true`, `text_operations: [...]`, `regex_replace: {...}`
+- **Best for:** Survey responses, free text fields, data standardization
+
+### **2.7 Data Quality & Cleaning Steps**
+
+#### **Deduplication**
+
+```python
+# Deduplication Configuration
+remove_duplicates: true
+duplicate_subset: ["col1", "col2"]  # Check specific columns only
+```
+
+**Properties:**
+- **Purpose:** Remove exact duplicate rows, improve data quality
+- **Configuration:** Global setting, optional column subset
+- **Performance:** O(n log n) complexity
+
+#### **Low Variance Removal**
+
+```python
+# Low variance removal
+remove_low_variance: true
+low_variance_thresh: 1  # Minimum unique values required
+```
+
+**Properties:**
+- **Purpose:** Remove columns with little information content
+- **Threshold:** Columns with ≤ threshold unique values are removed
+- **Best for:** Feature selection, dimensionality reduction
+
+#### **Column Dropping with Business Logic**
+
+```python
+# Column dropping configuration
+drop_column: true
+drop_reason: "unique_identifier"  # or "irrelevant", "redundant", "high_cardinality", "low_variance"
+```
+
+**Drop Reasons:**
+- **unique_identifier:** Primary keys, IDs not useful for modeling
+- **irrelevant:** Business-irrelevant columns
+- **redundant:** Duplicate information available elsewhere
+- **high_cardinality:** Too many unique values for encoding
+- **low_variance:** Insufficient information content
+
+### **2.8 Enhanced Outlier Treatment Methods**
+
+Beyond basic outlier detection, the pipeline provides sophisticated outlier treatment options:
+
+#### **Outlier Treatment Strategies:**
+
+| Method | Purpose | When to Use | Configuration |
+|--------|---------|-------------|---------------|
+| **remove** | Remove outlier rows | Clean datasets, sufficient data | `outlier_treatment: "remove"` |
+| **cap** | Cap to percentile bounds | Preserve data points | `outlier_treatment: "cap"` |
+| **winsorize** | Winsorize to percentiles | Robust statistics | `outlier_treatment: "winsorize"` |
+| **null** | Set outliers to null | For later imputation | `outlier_treatment: "null"` |
+| **iqr_cap** | Cap using IQR bounds | Custom IQR factors | `outlier_treatment: "iqr_cap"` |
+| **zscore_cap** | Cap using Z-score | Normal distributions | `outlier_treatment: "zscore_cap"` |
+| **isolation_forest** | ML-based detection | Complex patterns | `outlier_treatment: "isolation_forest"` |
+
+#### **Detailed Treatment Methods:**
+
+```python
+# Capping example
+lower_bound = df[col].quantile(0.01)
+upper_bound = df[col].quantile(0.99)
+df[col] = df[col].clip(lower_bound, upper_bound)
+
+# Winsorization example
+from scipy.stats import mstats
+df[col] = mstats.winsorize(df[col], limits=[0.01, 0.01])
+
+# IQR capping with custom factor
+Q1, Q3 = df[col].quantile([0.25, 0.75])
+IQR = Q3 - Q1
+lower_bound = Q1 - factor * IQR  # factor from outlier_threshold
+upper_bound = Q3 + factor * IQR
+df[col] = df[col].clip(lower_bound, upper_bound)
+```
+
+### **2.9 CSV Output Format Control**
+
+The pipeline provides extensive control over output formatting for compatibility and compliance:
+
+#### **Output Format Options:**
+
+| Setting | Options | Purpose | Example |
+|---------|---------|---------|---------|
+| **output_delimiter** | `,`, `;`, `\t`, `\|` | Regional compatibility | European semicolon format |
+| **output_quoting** | MINIMAL, ALL, NONNUMERIC, NONE | Data protection | Quote all fields for safety |
+| **output_encoding** | utf-8, latin-1, cp1252 | Character compatibility | Unicode support |
+| **output_lineterminator** | `\n`, `\r\n` | OS compatibility | Windows vs Unix |
+
+#### **Predefined CSV Presets:**
+
+```python
+# Available presets
+presets = {
+    "quoted_semicolon": {delimiter: ";", quoting: QUOTE_ALL},
+    "clean_semicolon": {delimiter: ";", quoting: QUOTE_MINIMAL},
+    "standard_csv": {delimiter: ",", quoting: QUOTE_MINIMAL},
+    "tab_separated": {delimiter: "\t", quoting: QUOTE_MINIMAL},
+    "pipe_separated": {delimiter: "|", quoting: QUOTE_MINIMAL},
+    "no_quotes": {delimiter: ";", quoting: QUOTE_NONE}
+}
+```
+
+**Properties:**
+- **Purpose:** Ensure output compatibility with downstream systems
+- **Configuration:** Global settings with preset options
+- **Best for:** Data exchange, regulatory compliance, system integration
 
 ---
 
