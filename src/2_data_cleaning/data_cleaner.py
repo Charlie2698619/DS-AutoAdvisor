@@ -20,6 +20,8 @@ from sklearn.preprocessing import (
     MaxAbsScaler, QuantileTransformer
 )
 from sklearn.ensemble import IsolationForest
+from sklearn.neighbors import LocalOutlierFactor
+from sklearn.covariance import EllipticEnvelope
 from sklearn.cluster import KMeans
 from scipy.stats import skew, boxcox
 from statsmodels.stats.outliers_influence import variance_inflation_factor
@@ -119,10 +121,23 @@ class CleaningConfig:
     
     # Global outliers (fallback)
     outlier_removal: bool = True
-    outlier_method: str = "iqr"  # iqr, isoforest, zscore
+    outlier_method: str = "iqr"  # iqr, isoforest, zscore, lof, elliptic_envelope, ensemble
     iqr_factor: float = 1.5
     iforest_contam: float = 0.01
     zscore_thresh: float = 3.0
+    
+    # LOF (Local Outlier Factor) parameters
+    lof_n_neighbors: int = 20
+    lof_contamination: float = 0.01
+    
+    # Elliptic Envelope parameters
+    elliptic_contamination: float = 0.01
+    elliptic_support_fraction: Optional[float] = None  # None for auto
+    
+    # Ensemble outlier detection parameters
+    ensemble_methods: List[str] = None  # e.g., ['iqr', 'isoforest', 'lof']
+    ensemble_voting: str = "union"  # union, majority, intersection
+    ensemble_contamination: float = 0.05  # Expected proportion of outliers
     
     # Global transformations (fallback)
     skew_correction: bool = True
@@ -166,6 +181,10 @@ class CleaningConfig:
         if self.column_configs is None:
             self.column_configs = {}
         
+        # Initialize ensemble_methods if None
+        if self.ensemble_methods is None:
+            self.ensemble_methods = ['iqr', 'isoforest', 'zscore']
+        
         # Load column-specific configuration if path provided
         if self.column_config_path and Path(self.column_config_path).exists():
             self._load_column_configs()
@@ -194,7 +213,24 @@ class CleaningConfig:
     @classmethod
     def from_yaml_config(cls, yaml_config: Dict[str, Any], input_path: str, output_path: str, log_path: str, **overrides):
         """Create CleaningConfig from YAML configuration with required paths"""
-        # Extract relevant settings from YAML
+        
+        # Helper function to get config value with global fallback
+        def get_config_value(key, default_value, section='outlier_detection'):
+            """Get config value, checking global data_cleaning section first, then mode-specific"""
+            # Check if there's a global data_cleaning section
+            global_section = overrides.get('global_config', {}).get('data_cleaning', {}).get(section, {})
+            if key in global_section:
+                if overrides.get('verbose', True):
+                    print(f"🔧 Using global data_cleaning.{section}.{key}: {global_section[key]}")
+                return global_section[key]
+            
+            # Fall back to mode-specific config
+            mode_value = yaml_config.get(key, default_value)
+            if overrides.get('verbose', True) and key in yaml_config:
+                print(f"🔧 Using mode-specific {key}: {mode_value}")
+            return mode_value
+        
+        # Extract relevant settings from YAML with global fallback support
         config_params = {
             'input_path': input_path,
             'output_path': output_path,
@@ -208,8 +244,19 @@ class CleaningConfig:
             'missing_row_thresh': yaml_config.get('missing_row_thresh', 0.5),
             'impute_num': yaml_config.get('impute_num', 'auto'),
             'impute_cat': yaml_config.get('impute_cat', 'auto'),
-            'outlier_removal': yaml_config.get('outlier_removal', True),
-            'outlier_method': yaml_config.get('outlier_method', 'iqr'),
+            # Outlier detection parameters with global fallback
+            'outlier_removal': get_config_value('outlier_removal', True),
+            'outlier_method': get_config_value('outlier_method', 'iqr'),
+            'iqr_factor': get_config_value('iqr_factor', 1.5),
+            'iforest_contam': get_config_value('iforest_contam', 0.01),
+            'zscore_thresh': get_config_value('zscore_thresh', 3.0),
+            'lof_n_neighbors': get_config_value('lof_n_neighbors', 20),
+            'lof_contamination': get_config_value('lof_contamination', 0.01),
+            'elliptic_contamination': get_config_value('elliptic_contamination', 0.01),
+            'elliptic_support_fraction': get_config_value('elliptic_support_fraction', None),
+            'ensemble_methods': get_config_value('ensemble_methods', ['iqr', 'isoforest', 'zscore']),
+            'ensemble_voting': get_config_value('ensemble_voting', 'union'),
+            'ensemble_contamination': get_config_value('ensemble_contamination', 0.05),
             'scaling': yaml_config.get('scaling', 'standard'),
             'encoding': yaml_config.get('encoding', 'onehot'),
             'target_column': yaml_config.get('target_column', None)
@@ -319,6 +366,12 @@ class OutlierRemovalStep(CleaningStep):
             df = self._remove_isoforest_outliers(df, num_cols, config.iforest_contam, config.random_state)
         elif config.outlier_method == "zscore":
             df = self._remove_zscore_outliers(df, num_cols, config.zscore_thresh)
+        elif config.outlier_method == "lof":
+            df = self._remove_lof_outliers(df, num_cols, config.lof_n_neighbors, config.lof_contamination)
+        elif config.outlier_method == "elliptic_envelope":
+            df = self._remove_elliptic_outliers(df, num_cols, config.elliptic_contamination, config.elliptic_support_fraction, config.random_state)
+        elif config.outlier_method == "ensemble":
+            df = self._remove_ensemble_outliers(df, num_cols, config)
             
         removed = before - len(df)
         if removed > 0:
@@ -347,6 +400,103 @@ class OutlierRemovalStep(CleaningStep):
             col_mask = z_scores <= thresh
             mask = mask & col_mask
         return df[mask]
+    
+    def _remove_lof_outliers(self, df: pd.DataFrame, num_cols: List[str], 
+                           n_neighbors: int, contamination: float) -> pd.DataFrame:
+        """Remove outliers using Local Outlier Factor (LOF)"""
+        lof = LocalOutlierFactor(n_neighbors=n_neighbors, contamination=contamination, n_jobs=-1)
+        mask = lof.fit_predict(df[num_cols]) == 1
+        return df[mask]
+    
+    def _remove_elliptic_outliers(self, df: pd.DataFrame, num_cols: List[str], 
+                                contamination: float, support_fraction: float, random_state: int) -> pd.DataFrame:
+        """Remove outliers using Elliptic Envelope"""
+        elliptic = EllipticEnvelope(contamination=contamination, 
+                                  support_fraction=support_fraction, 
+                                  random_state=random_state)
+        mask = elliptic.fit_predict(df[num_cols]) == 1
+        return df[mask]
+    
+    def _remove_ensemble_outliers(self, df: pd.DataFrame, num_cols: List[str], config: CleaningConfig) -> pd.DataFrame:
+        """Remove outliers using ensemble of multiple methods"""
+        outlier_masks = []
+        
+        # Apply each method in the ensemble
+        for method in config.ensemble_methods:
+            if method == 'iqr':
+                method_mask = self._get_iqr_outlier_mask(df, num_cols, config.iqr_factor)
+            elif method == 'isoforest':
+                method_mask = self._get_isoforest_outlier_mask(df, num_cols, config.iforest_contam, config.random_state)
+            elif method == 'zscore':
+                method_mask = self._get_zscore_outlier_mask(df, num_cols, config.zscore_thresh)
+            elif method == 'lof':
+                method_mask = self._get_lof_outlier_mask(df, num_cols, config.lof_n_neighbors, config.lof_contamination)
+            elif method == 'elliptic_envelope':
+                method_mask = self._get_elliptic_outlier_mask(df, num_cols, config.elliptic_contamination, 
+                                                           config.elliptic_support_fraction, config.random_state)
+            else:
+                continue
+            outlier_masks.append(method_mask)
+        
+        if not outlier_masks:
+            return df
+        
+        # Combine masks based on voting strategy
+        if config.ensemble_voting == 'union':
+            # A point is an outlier if ANY method flags it
+            final_mask = ~np.any(outlier_masks, axis=0)
+        elif config.ensemble_voting == 'intersection':
+            # A point is an outlier if ALL methods flag it
+            final_mask = ~np.all(outlier_masks, axis=0)
+        elif config.ensemble_voting == 'majority':
+            # A point is an outlier if majority of methods flag it
+            outlier_count = np.sum(outlier_masks, axis=0)
+            threshold = len(outlier_masks) / 2
+            final_mask = ~(outlier_count > threshold)
+        else:
+            # Default to union
+            final_mask = ~np.any(outlier_masks, axis=0)
+        
+        return df[final_mask]
+    
+    def _get_iqr_outlier_mask(self, df: pd.DataFrame, num_cols: List[str], factor: float) -> np.ndarray:
+        """Get boolean mask where True indicates outlier for IQR method"""
+        outlier_mask = pd.Series([False] * len(df), index=df.index)
+        for col in num_cols:
+            Q1, Q3 = df[col].quantile([0.25, 0.75])
+            IQR = Q3 - Q1
+            col_outliers = (df[col] < Q1 - factor * IQR) | (df[col] > Q3 + factor * IQR)
+            outlier_mask = outlier_mask | col_outliers
+        return outlier_mask.values
+    
+    def _get_isoforest_outlier_mask(self, df: pd.DataFrame, num_cols: List[str], 
+                                  contamination: float, random_state: int) -> np.ndarray:
+        """Get boolean mask where True indicates outlier for Isolation Forest method"""
+        iso = IsolationForest(contamination=contamination, random_state=random_state, n_jobs=-1)
+        return iso.fit_predict(df[num_cols]) == -1
+    
+    def _get_zscore_outlier_mask(self, df: pd.DataFrame, num_cols: List[str], thresh: float) -> np.ndarray:
+        """Get boolean mask where True indicates outlier for Z-score method"""
+        outlier_mask = pd.Series([False] * len(df), index=df.index)
+        for col in num_cols:
+            z_scores = np.abs((df[col] - df[col].mean()) / df[col].std())
+            col_outliers = z_scores > thresh
+            outlier_mask = outlier_mask | col_outliers
+        return outlier_mask.values
+    
+    def _get_lof_outlier_mask(self, df: pd.DataFrame, num_cols: List[str], 
+                            n_neighbors: int, contamination: float) -> np.ndarray:
+        """Get boolean mask where True indicates outlier for LOF method"""
+        lof = LocalOutlierFactor(n_neighbors=n_neighbors, contamination=contamination, n_jobs=-1)
+        return lof.fit_predict(df[num_cols]) == -1
+    
+    def _get_elliptic_outlier_mask(self, df: pd.DataFrame, num_cols: List[str], 
+                                 contamination: float, support_fraction: float, random_state: int) -> np.ndarray:
+        """Get boolean mask where True indicates outlier for Elliptic Envelope method"""
+        elliptic = EllipticEnvelope(contamination=contamination, 
+                                  support_fraction=support_fraction, 
+                                  random_state=random_state)
+        return elliptic.fit_predict(df[num_cols]) == -1
 
 class ColumnSpecificCleaningStep(CleaningStep):
     """Apply column-specific transformations based on configuration"""

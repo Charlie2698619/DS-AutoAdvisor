@@ -12,11 +12,186 @@ global:
   data_input_path: "data/telco_churn_data.csv"     # Default input data path
   target_column: "Churn"                            # Primary target column name
   target_column_variants: ["Churn", "Churn_binary_0", "Churn_encoded", "Churn_label"]  # Alternative target names
-  csv_delimiter: ";"                                # CSV delimiter: ",", ";", "\t", "|"
+  csv_delimiter: ","                                # CSV delimiter: ",", ";", "\t", "|"
   csv_encoding: "utf-8"                            # File encoding: "utf-8", "latin1", "cp1252"
   random_state: 42                                  # Global random seed for reproducibility
   output_base_dir: "pipeline_outputs"              # Base directory for all outputs
   versioning_enabled: true                         # Enable output versioning (true/false)
+
+# =============================================================================
+# 🔧 ENHANCED QUALITY SYSTEM (shared by both modes)
+# =============================================================================
+enhanced_quality_system:
+  components:
+    enable_type_inference: true               # Enable multi-stage data type inference (true/false)
+    enable_pattern_detection: true            # Enable advanced pattern detection (true/false)
+    enable_quality_metrics: true              # Enable comprehensive quality metrics (true/false)
+    enable_cross_validation: true             # Enable cross-component validation (true/false)
+  reporting:
+    generate_detailed_report: true            # Generate detailed JSON report (true/false)
+    include_recommendations: true             # Include actionable recommendations (true/false)
+    include_sample_data: true                 # Include sample data in reports (true/false)
+    max_sample_size: 100                      # Maximum sample size for examples (50-500)
+  thresholds:
+    critical_score_threshold: 40              # Score below which data is critical (20-60)
+    warning_score_threshold: 60               # Score below which warnings are issued (60-80)
+    good_score_threshold: 85                  # Score above which data is considered good (80-95)
+  integration:
+    use_yaml_config: true                     # Use YAML configuration (true/false)
+    respect_mode_settings: true               # Respect FAST/CUSTOM mode settings (true/false)
+    output_format: "comprehensive"            # Output format: "basic", "detailed", "comprehensive"
+
+# === DATA TYPE INFERENCE CONFIGURATION ===
+data_type_inference:
+  confidence_thresholds:
+    high: 0.8                                 # High confidence threshold (0.7-0.95)
+    medium: 0.6                               # Medium confidence threshold (0.5-0.8)
+    low: 0.4                                  # Low confidence threshold (0.2-0.6)
+  cardinality_thresholds:
+    unique_ratio_for_id: 0.95                # Unique ratio to classify as ID (0.9-0.99)
+    unique_ratio_for_categorical: 0.5        # Unique ratio for categorical (0.3-0.7)
+    max_categories: 50                        # Max categories for categorical (20-100)
+  datetime_patterns:
+    - '\d{4}-\d{2}-\d{2}'                 # YYYY-MM-DD format
+    - '\d{2}/\d{2}/\d{4}'                 # MM/DD/YYYY format
+    - '\d{2}-\d{2}-\d{4}'                 # MM-DD-YYYY format
+    - '\d{4}/\d{2}/\d{2}'                 # YYYY/MM/DD format
+  numeric_patterns:
+    - '^[-+]?\d*\.?\d+([eE][-+]?\d+)?$' # Scientific notation
+    - '^[-+]?\d+$'                         # Integer
+    - '^[-+]?\d*\.\d+$'                  # Decimal
+  statistical_tests:
+    enable_normality_test: true              # Enable normality testing (true/false)
+    enable_chi_square_test: true             # Enable chi-square testing (true/false)
+    sample_size_for_tests: 1000              # Sample size for statistical tests (500-5000)
+
+# === PATTERN DETECTION CONFIGURATION ===
+pattern_detection:
+  business_patterns:
+    email:
+      pattern: '^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+      confidence_threshold: 0.8
+      description: 'Email address format'
+    phone:
+      pattern: '^[\+]?[1-9]?[0-9]{7,15}$'
+      confidence_threshold: 0.7
+      description: 'Phone number format'
+    ssn:
+      pattern: '^\d{3}-\d{2}-\d{4}$'
+      confidence_threshold: 0.9
+      description: 'Social Security Number'
+    credit_card:
+      pattern: '^\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}$'
+      confidence_threshold: 0.8
+      description: 'Credit card number'
+  formatting_patterns:
+    currency:
+      pattern: '^\$?\d{1,3}(,\d{3})*(\.\d{2})?$'
+      confidence_threshold: 0.7
+      description: 'Currency format'
+    percentage:
+      pattern: '^\d{1,3}(\.\d+)?%$'
+      confidence_threshold: 0.8
+      description: 'Percentage format'
+    zip_code:
+      pattern: '^\d{5}(-\d{4})?$'
+      confidence_threshold: 0.8
+      description: 'ZIP code format'
+    iso_date:
+      pattern: '^\d{4}-\d{2}-\d{2}$'
+      confidence_threshold: 0.9
+      description: 'ISO date format (YYYY-MM-DD)'
+  id_patterns:
+    uuid:
+      pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+      confidence_threshold: 0.95
+      description: 'UUID format'
+    sequential_id:
+      pattern: 'SEQUENTIAL_CHECK'
+      confidence_threshold: 0.8
+      description: 'Sequential identifier'
+  anomaly_detection:
+    enable_outlier_detection: true           # Enable outlier detection (true/false)
+    outlier_methods: ['iqr', 'zscore']       # Outlier detection methods
+    outlier_threshold: 3.0                   # Outlier threshold (2.0-5.0)
+    enable_inconsistency_detection: true     # Enable inconsistency detection (true/false)
+  statistical_patterns:
+    enable_distribution_analysis: true       # Enable distribution analysis (true/false)
+    enable_correlation_analysis: true        # Enable correlation analysis (true/false)
+    correlation_threshold: 0.8               # Correlation threshold (0.7-0.95)
+
+# === QUALITY METRICS CONFIGURATION ===
+quality_metrics:
+  dimensions:
+    completeness:
+      weight: 0.25                            # Weight for completeness dimension (0.1-0.4)
+      thresholds:
+        excellent: 0.95                       # Excellent threshold (0.9-0.99)
+        good: 0.85                           # Good threshold (0.8-0.9)
+        acceptable: 0.70                      # Acceptable threshold (0.6-0.8)
+        poor: 0.50                           # Poor threshold (0.4-0.6)
+    consistency:
+      weight: 0.20                            # Weight for consistency dimension (0.1-0.3)
+      thresholds:
+        excellent: 0.98                       # Excellent threshold (0.95-0.99)
+        good: 0.90                           # Good threshold (0.85-0.95)
+        acceptable: 0.75                      # Acceptable threshold (0.7-0.85)
+        poor: 0.60                           # Poor threshold (0.5-0.7)
+    accuracy:
+      weight: 0.20                            # Weight for accuracy dimension (0.1-0.3)
+      thresholds:
+        excellent: 0.95                       # Excellent threshold (0.9-0.99)
+        good: 0.85                           # Good threshold (0.8-0.9)
+        acceptable: 0.70                      # Acceptable threshold (0.6-0.8)
+        poor: 0.55                           # Poor threshold (0.4-0.6)
+    validity:
+      weight: 0.15                            # Weight for validity dimension (0.1-0.25)
+      thresholds:
+        excellent: 0.98                       # Excellent threshold (0.95-0.99)
+        good: 0.90                           # Good threshold (0.85-0.95)
+        acceptable: 0.80                      # Acceptable threshold (0.7-0.9)
+        poor: 0.65                           # Poor threshold (0.5-0.7)
+    uniqueness:
+      weight: 0.10                            # Weight for uniqueness dimension (0.05-0.2)
+      thresholds:
+        excellent: 0.99                       # Excellent threshold (0.95-1.0)
+        good: 0.95                           # Good threshold (0.9-0.98)
+        acceptable: 0.85                      # Acceptable threshold (0.8-0.9)
+        poor: 0.70                           # Poor threshold (0.6-0.8)
+    timeliness:
+      weight: 0.10                            # Weight for timeliness dimension (0.05-0.2)
+      thresholds:
+        excellent: 0.95                       # Excellent threshold (0.9-1.0)
+        good: 0.85                           # Good threshold (0.8-0.9)
+        acceptable: 0.70                      # Acceptable threshold (0.6-0.8)
+        poor: 0.50                           # Poor threshold (0.4-0.6)
+  scoring:
+    excellent_score: 100                      # Score for excellent quality (95-100)
+    good_score: 80                           # Score for good quality (75-85)
+    acceptable_score: 60                      # Score for acceptable quality (55-65)
+    poor_score: 40                           # Score for poor quality (30-45)
+    failing_score: 20                        # Score for failing quality (10-25)
+  validation_rules:
+    numeric_ranges: true                     # Enable numeric range validation (true/false)
+    categorical_domains: true                # Enable categorical domain validation (true/false)
+    date_ranges: true                        # Enable date range validation (true/false)
+    business_rules: true                     # Enable business rule validation (true/false)
+
+# === DATA CLEANING CONFIGURATION (global defaults) ===
+data_cleaning:
+  outlier_detection:
+    outlier_removal: true                    # Remove outliers (true/false)
+    outlier_method: "iqr"                    # Default method: "iqr", "isoforest", "zscore", "lof", "elliptic_envelope", "ensemble"
+    iqr_factor: 1.5                          # IQR factor for outlier detection (1.0-3.0)
+    iforest_contam: 0.01                     # Isolation Forest contamination rate (0.001-0.1)
+    zscore_thresh: 3.0                       # Z-score threshold (2.0-5.0)
+    lof_n_neighbors: 20                      # LOF number of neighbors (5-50)
+    lof_contamination: 0.01                  # LOF contamination rate (0.001-0.1)
+    elliptic_contamination: 0.01             # Elliptic Envelope contamination rate (0.001-0.1)
+    elliptic_support_fraction: null          # Elliptic Envelope support fraction (null=auto, 0.1-1.0)
+    ensemble_methods: ['iqr', 'isoforest', 'zscore']  # Methods for ensemble outlier detection
+    ensemble_voting: "union"                 # Ensemble voting: "union", "intersection", "majority"
+    ensemble_contamination: 0.05             # Overall contamination for ensemble (0.001-0.2)
 
 # =============================================================================
 # 🚀 FAST MODE - Quick pipeline execution with minimal configuration
@@ -243,7 +418,7 @@ custom_mode:
         consistency_min: 0.7                        # Min consistency threshold (0.5-0.95)
         validity_min: 0.9                           # Min validity threshold (0.6-0.99)
         uniqueness_check: true                       # Enable uniqueness checking (true/false)
-        
+      
     # === CONFIGURATION GENERATION ===
     config_generation:
       cleaning_config_template: true                # Generate cleaning config template (true/false)
@@ -290,8 +465,17 @@ custom_mode:
     # impute_num: "auto"                           # Numeric imputation: "auto", "mean", "median", "knn", "iterative"
     # impute_cat: "auto"                           # Categorical imputation: "auto", "most_frequent", "constant"
     # outlier_removal: true                        # Remove outliers (true/false)
-    # outlier_method: "iqr"                        # Outlier method: "iqr", "isoforest", "zscore"
+    # outlier_method: "iqr"                        # Outlier method: "iqr", "isoforest", "zscore", "lof", "elliptic_envelope", "ensemble"
     # iqr_factor: 1.5                              # IQR factor for outlier detection (1.0-3.0)
+    # iforest_contam: 0.01                         # Isolation Forest contamination rate (0.001-0.1)
+    # zscore_thresh: 3.0                           # Z-score threshold (2.0-5.0)
+    # lof_n_neighbors: 20                          # LOF number of neighbors (5-50)
+    # lof_contamination: 0.01                      # LOF contamination rate (0.001-0.1)
+    # elliptic_contamination: 0.01                 # Elliptic Envelope contamination rate (0.001-0.1)
+    # elliptic_support_fraction: null              # Elliptic Envelope support fraction (null=auto, 0.1-1.0)
+    # ensemble_methods: ['iqr', 'isoforest', 'zscore']  # Methods for ensemble outlier detection
+    # ensemble_voting: "union"                     # Ensemble voting: "union", "intersection", "majority"
+    # ensemble_contamination: 0.05                 # Overall contamination for ensemble (0.001-0.2)
     # skew_correction: true                        # Apply skew correction (true/false)
     # skew_thresh: 1.0                             # Skewness threshold (0.5-2.0)
     # skew_method: "yeo-johnson"                   # Skew method: "yeo-johnson", "box-cox", "log"

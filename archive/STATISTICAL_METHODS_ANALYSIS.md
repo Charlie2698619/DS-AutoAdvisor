@@ -1,8 +1,8 @@
-# 📊 DS-AutoAdvisor v2.0 - Statistical Methods Analysis
+# 📊 DS-AutoAdvisor v3.0 - Comprehensive Statistical Methods Analysis
 
 ## Overview
 
-This document provides a comprehensive analysis of all statistical approaches, methods, assumptions, and limitations in your DS-AutoAdvisor v2.0 pipeline. Understanding these will help you make informed decisions about data suitability and interpret results correctly.
+This document provides a comprehensive analysis of all statistical approaches, methods, assumptions, and limitations in your DS-AutoAdvisor v3.0 pipeline. Understanding these will help you make informed decisions about data suitability and interpret results correctly.
 
 ---
 
@@ -77,27 +77,715 @@ is_numeric = can_convert_to_float AND (unique_count / total_count) > threshold
 - ✅ Missing values don't dominate the column (>50% non-null)
 - ⚠️ Mixed types indicate data quality issues
 
-#### **Outlier Detection Ensemble**
-- **Methods Available:**
-  1. **Isolation Forest** (Unsupervised) 
-  features: scales well, non-normality assumptions, mixed types possible (speed + robustness)
-  2. **Local Outlier Factor** (Density-based) 
-  features: detects local anomalies, non-normality assumptions, non-linear patterns (small to medium datasets)
-  3. **Z-Score** (Statistical) 
-  features: normality, univariate or mildly multivariate (simple & fast)
-  4. **Interquartile Range (IQR)** (Robust statistical)
-  features: handle skew, univariate checks, data not normal (easy to explain)
-  5. **Elliptic Envelope** (Covariance-based)
-  features: multivariate gaussian, normality assumption, Mahalanobis-distance-based detection, outliers are global not local (precise when assumptions met)
+---
 
-- **Recommendation**
- 1. for exploratory data cleaning: z-score + iqr, ensemble_voting: false
- 2. for robust production-level cleaning: IF + LOF + z-score, ensemble_voting: true, contamination_rate: 0.1
- 3. for statistically controlled environments: z-score + elliptic envelope, ensemble_voting: true
+## 🧹 **STAGE 2: DATA CLEANING & PREPROCESSING**
 
+### **2.1 Comprehensive Outlier Detection Methods**
 
+DS-AutoAdvisor v3.0 provides a complete suite of outlier detection methods, from simple statistical approaches to advanced machine learning techniques, including ensemble methods for robust detection.
 
-**Mathematical Foundations:**
+#### **Statistical Methods**
+
+**1. Interquartile Range (IQR) Method**
+```python
+# Mathematical Foundation
+Q1, Q3 = df[col].quantile([0.25, 0.75])
+IQR = Q3 - Q1
+outlier_condition = (x < Q1 - factor * IQR) | (x > Q3 + factor * IQR)
+```
+
+**Properties:**
+- **Assumptions:** None (distribution-free)
+- **Robust to:** Non-normal distributions, skewed data
+- **Parameters:** IQR factor (default: 1.5)
+- **Best for:** Univariate outlier detection, easy interpretation
+- **Limitations:** Only considers marginal distributions
+
+**2. Z-Score Method**
+```python
+# Mathematical Foundation
+z_score = |x - μ| / σ
+outlier_condition = |z_score| > threshold
+```
+
+**Properties:**
+- **Assumptions:** Normal distribution (optimal)
+- **Parameters:** Z-score threshold (default: 3.0)
+- **Best for:** Normally distributed data, quick screening
+- **Limitations:** Sensitive to distribution shape, not robust to outliers in calculation
+
+#### **Machine Learning Methods**
+
+**3. Isolation Forest**
+```python
+# Mathematical Foundation
+Anomaly_Score = 2^(-E(h(x))/c(n))
+where:
+- E(h(x)) = average path length of x in isolation trees
+- c(n) = average path length of BST with n points
+```
+
+**Properties:**
+- **Assumptions:** Outliers are sparse and different from normal points
+- **Parameters:** contamination rate (default: 0.01), n_estimators
+- **Best for:** High-dimensional data, mixed data types
+- **Strengths:** Linear time complexity, handles mixed types
+- **Limitations:** Parameter sensitivity, requires sufficient sample size
+
+**4. Local Outlier Factor (LOF)**
+```python
+# Mathematical Foundation
+LOF(x) = Σ(lrd(y)/lrd(x)) / |N_k(x)|
+where:
+- lrd = local reachability density
+- N_k(x) = k-nearest neighbors of x
+```
+
+**Properties:**
+- **Assumptions:** Local density variations indicate anomalies
+- **Parameters:** n_neighbors (default: 20), contamination (default: 0.01)
+- **Best for:** Data with clusters of varying density
+- **Strengths:** Detects local anomalies, handles clusters well
+- **Limitations:** Sensitive to parameter choice, computational complexity O(n²)
+
+**5. Elliptic Envelope (Covariance-based)**
+```python
+# Mathematical Foundation
+# Assumes data follows multivariate Gaussian distribution
+# Uses robust covariance estimation (Minimum Covariance Determinant)
+mahalanobis_distance = sqrt((x - μ)ᵀ Σ⁻¹ (x - μ))
+```
+
+**Properties:**
+- **Assumptions:** Multivariate Gaussian distribution
+- **Parameters:** contamination (default: 0.01), support_fraction (auto)
+- **Best for:** Multivariate normal data, global outliers
+- **Strengths:** Theoretically sound for Gaussian data
+- **Limitations:** Strong distributional assumptions, not robust to non-Gaussian data
+
+#### **Ensemble Outlier Detection**
+
+**6. Ensemble Methods**
+```python
+# Available Ensemble Strategies
+ensemble_methods = ['iqr', 'isoforest', 'zscore', 'lof', 'elliptic_envelope']
+voting_strategies = ['union', 'intersection', 'majority']
+```
+
+**Voting Strategies:**
+- **Union:** Point is outlier if ANY method flags it (most sensitive)
+- **Intersection:** Point is outlier if ALL methods flag it (most conservative)
+- **Majority:** Point is outlier if majority of methods flag it (balanced)
+
+**Properties:**
+- **Assumptions:** Different methods capture different types of outliers
+- **Parameters:** ensemble_methods list, voting strategy, individual method parameters
+- **Best for:** Robust outlier detection, production environments
+- **Strengths:** Reduces false positives/negatives, method diversity
+- **Limitations:** Computational overhead, parameter tuning complexity
+
+#### **Method Selection Guidelines**
+
+| Method | Sample Size | Dimensions | Distribution | Use Case |
+|--------|-------------|------------|--------------|----------|
+| **IQR** | n ≥ 10 | Univariate | Any | Quick screening, interpretability |
+| **Z-Score** | n ≥ 30 | Univariate | Normal | Fast, simple datasets |
+| **Isolation Forest** | n ≥ 100 | High-dim | Any | Production, mixed types |
+| **LOF** | n ≥ 50 | Medium | Any | Clustered data, local anomalies |
+| **Elliptic Envelope** | n ≥ features×2 | Multivariate | Gaussian | Theoretical soundness |
+| **Ensemble** | n ≥ 100 | Any | Any | Robust production systems |
+
+**Recommended Configurations:**
+
+1. **Exploratory Analysis:**
+   ```yaml
+   outlier_method: "iqr"
+   iqr_factor: 1.5
+   ```
+
+2. **Production Pipeline:**
+   ```yaml
+   outlier_method: "ensemble"
+   ensemble_methods: ['iqr', 'isoforest', 'lof']
+   ensemble_voting: "majority"
+   ensemble_contamination: 0.05
+   ```
+
+3. **High-Quality Gaussian Data:**
+   ```yaml
+   outlier_method: "ensemble"
+   ensemble_methods: ['zscore', 'elliptic_envelope']
+   ensemble_voting: "intersection"
+   ```
+
+### **2.2 Missing Data Handling**
+
+#### **Imputation Methods Available:**
+
+**1. Simple Imputation**
+```python
+# Mean/Median/Mode imputation
+imputed_value = df[col].mean()  # or median(), mode()
+```
+
+**2. K-Nearest Neighbors Imputation**
+```python
+# Distance-based imputation
+imputed_value = weighted_average(k_nearest_neighbors)
+# Uses Euclidean distance for numerical, Hamming for categorical
+```
+
+**3. Iterative Imputation (MICE-like)**
+```python
+# Multiple Imputation by Chained Equations
+for feature in features_with_missing:
+    model = fit_regression(other_features, feature)
+    impute(feature, model.predict(other_features))
+```
+
+**Statistical Assumptions:**
+
+| Method | Missing Mechanism | Assumption | Best For |
+|--------|------------------|------------|----------|
+| **Mean/Median** | MCAR | Missing Completely At Random | Simple, fast |
+| **KNN** | MAR | Missing At Random | Mixed data types |
+| **Iterative** | MAR | Missing At Random | Complex dependencies |
+
+**Prerequisites:**
+- ✅ **KNN:** At least 5 complete cases per missing case
+- ✅ **Iterative:** At least 100 samples, <30% missing per feature
+- ✅ **All methods:** Missing rate <70% overall
+
+### **2.3 Feature Scaling & Transformation**
+
+#### **Scaling Methods:**
+
+**1. StandardScaler (Z-score normalization)**
+```python
+x_scaled = (x - μ) / σ
+```
+- **Assumption:** Normal distribution (optimal)
+- **Robust to:** Linear transformations
+- **Sensitive to:** Outliers
+
+**2. MinMaxScaler**
+```python
+x_scaled = (x - min) / (max - min)
+```
+- **Assumption:** Known min/max bounds
+- **Range:** [0, 1]
+- **Sensitive to:** Outliers at extremes
+
+**3. RobustScaler**
+```python
+x_scaled = (x - median) / IQR
+```
+- **Assumption:** None (robust)
+- **Robust to:** Outliers
+- **Best for:** Non-normal distributions
+
+**4. MaxAbsScaler**
+```python
+x_scaled = x / max(|x|)
+```
+- **Range:** [-1, 1]
+- **Preserves:** Sparsity
+- **Best for:** Sparse data
+
+**5. QuantileTransformer**
+```python
+# Uniform: maps to uniform distribution [0, 1]
+# Normal: maps to standard normal distribution
+```
+- **Purpose:** Distribution transformation
+- **Robust to:** Outliers
+- **Best for:** Non-linear transformations
+
+#### **Mathematical Transformations:**
+
+**1. Power Transformations**
+```python
+# Yeo-Johnson (handles negative values)
+y(λ) = ((x+1)^λ - 1) / λ  if λ ≠ 0, x ≥ 0
+
+# Box-Cox (positive values only)
+y(λ) = (x^λ - 1) / λ     if λ ≠ 0, x > 0
+```
+
+**2. Logarithmic Transformations**
+```python
+# Natural log
+y = ln(x)        # Requires x > 0
+
+# Log1p (handles zeros)
+y = ln(1 + x)    # Requires x ≥ 0
+```
+
+**3. Root Transformations**
+```python
+# Square root
+y = √x           # Requires x ≥ 0
+
+# Reciprocal
+y = 1/x          # Requires x ≠ 0
+```
+
+### **2.4 Comprehensive Encoding Strategies**
+
+#### **Categorical Encoding Methods:**
+
+**1. One-Hot Encoding**
+```python
+# Creates binary columns for each category
+# Example: Color=[Red, Blue, Green] → Color_Red, Color_Blue, Color_Green
+```
+- **Mathematical:** Binary vector representation
+- **Assumption:** No ordinal relationship
+- **Best for:** Low cardinality (<20 categories)
+- **Limitation:** Curse of dimensionality
+
+**2. Label Encoding**
+```python
+# Maps categories to integers: {cat1: 0, cat2: 1, cat3: 2}
+```
+- **Mathematical:** Integer mapping
+- **Assumption:** Ordinal relationship exists OR tree-based models
+- **Risk:** Introduces artificial ordering
+- **Best for:** Tree-based models, ordinal data
+
+**3. Ordinal Encoding**
+```python
+# User-defined order: {low: 0, medium: 1, high: 2}
+```
+- **Mathematical:** User-defined integer mapping
+- **Assumption:** True ordinal relationship
+- **Requirement:** Domain knowledge
+- **Best for:** Naturally ordered categories
+
+**4. Binary Encoding**
+```python
+# Converts to binary representation
+# Example: 8 categories → 3 binary columns (2^3 = 8)
+```
+- **Mathematical:** Binary number system
+- **Advantage:** Reduces dimensionality vs one-hot
+- **Best for:** High cardinality (50-1000 categories)
+
+**5. Frequency Encoding**
+```python
+# Replaces category with its frequency count
+frequency_map = df[col].value_counts().to_dict()
+```
+- **Mathematical:** Count-based mapping
+- **Captures:** Category prevalence
+- **Risk:** Information loss for rare categories
+
+**6. Target/Mean Encoding**
+```python
+# Replaces category with mean target value for that category
+target_means = df.groupby(category)[target].mean()
+```
+- **Mathematical:** Conditional expectation E[y|category]
+- **Advantage:** High predictive power
+- **Risk:** Target leakage, overfitting
+- **Requirement:** Target variable available
+
+**Cardinality Guidelines:**
+
+| Cardinality | Recommended Encoding | Alternative |
+|-------------|---------------------|-------------|
+| 2-5 categories | One-Hot | Label |
+| 5-20 categories | One-Hot | Ordinal (if ordered) |
+| 20-50 categories | Binary or Target | Frequency |
+| 50+ categories | Target or Hash | Embedding |
+
+---
+
+## 🤖 **STAGE 3: STATISTICAL ASSUMPTION TESTING & ADVISORY**
+
+### **3.1 Assumption Testing Framework**
+
+#### **Normality Testing**
+
+**Methods Available:**
+1. **Shapiro-Wilk Test** (default for n ≤ 5000)
+2. **Anderson-Darling Test**
+3. **Jarque-Bera Test**
+4. **D'Agostino's Test**
+
+**Mathematical Basis:**
+```python
+# Shapiro-Wilk Test Statistic
+W = (Σ a_i * x_(i))² / Σ(x_i - x̄)²
+
+# Anderson-Darling Test Statistic  
+A² = -n - (1/n) * Σ(2i-1)[ln(F(x_i)) + ln(1-F(x_(n+1-i)))]
+```
+
+**Test Selection:**
+
+| Test | Sample Size | Power | Best For |
+|------|-------------|-------|----------|
+| **Shapiro-Wilk** | 3 ≤ n ≤ 5000 | High | Small to medium samples |
+| **Anderson-Darling** | n > 5000 | High | Large samples |
+| **Jarque-Bera** | n > 30 | Medium | Quick screening |
+
+#### **Homoscedasticity Testing**
+
+**1. Breusch-Pagan Test** (default)
+```python
+# Test statistic follows χ² distribution
+LM = n * R² (from auxiliary regression)
+```
+
+**2. White Test**
+```python
+# More general, tests for any heteroscedasticity
+# Includes cross-terms and squared terms
+```
+
+#### **Multicollinearity Detection**
+
+**1. Variance Inflation Factor (VIF)**
+```python
+VIF_j = 1 / (1 - R²_j)
+where R²_j = R² from regressing x_j on all other x_k
+```
+
+**2. Correlation Matrix Analysis**
+```python
+# High correlation threshold
+|correlation| > 0.95 (configurable)
+```
+
+**VIF Interpretation:**
+- ✅ **No concern:** VIF < 5
+- ⚠️ **Moderate:** 5 ≤ VIF < 10
+- ❌ **High concern:** VIF ≥ 10
+
+#### **Linearity Testing**
+
+**Harvey-Collier Test**
+```python
+# Tests for linearity in mean function
+# t-statistic tests if E[y|x] is linear
+```
+
+#### **Independence Testing**
+
+**Durbin-Watson Test**
+```python
+DW = Σ(e_t - e_{t-1})² / Σe_t²
+where e_t are residuals
+```
+
+**Interpretation:**
+- ✅ **No autocorrelation:** DW ≈ 2
+- ⚠️ **Positive autocorrelation:** DW < 2
+- ⚠️ **Negative autocorrelation:** DW > 2
+
+### **3.2 Model Recommendation Logic**
+
+#### **Decision Matrix:**
+
+| Data Characteristics | Assumptions Violated | Recommended Models |
+|---------------------|---------------------|-------------------|
+| **Small Dataset (n<1000)** | None | Linear/Logistic Regression |
+| **Large Dataset (n>10000)** | None | Ridge/Lasso Regression |
+| **Non-linear relationships** | Linearity | Tree-based (RF, XGBoost) |
+| **High multicollinearity** | Independence | Ridge/Lasso/Elastic Net |
+| **Non-normal residuals** | Normality | Robust methods (Huber) |
+| **Heteroscedasticity** | Homoscedasticity | Robust standard errors |
+| **Class imbalance** | Balanced classes | Balanced ensembles |
+
+---
+
+## 🏋️ **STAGE 4: MODEL TRAINING & STATISTICAL LEARNING**
+
+### **4.1 Model Categories & Statistical Foundations**
+
+#### **Linear Models**
+
+**1. Linear/Logistic Regression**
+- **Mathematical Basis:** OLS, Maximum Likelihood
+- **Assumptions:** Linear relationship, independence, homoscedasticity, normality
+- **Best for:** Interpretable models, small datasets
+
+**2. Ridge Regression (L2)**
+```python
+Cost = MSE + α * Σβ²
+```
+- **Handles:** Multicollinearity
+- **Trade-off:** Bias-variance via α
+
+**3. Lasso Regression (L1)**
+```python
+Cost = MSE + α * Σ|β|
+```
+- **Handles:** Feature selection + multicollinearity
+- **Property:** Sparse solutions
+
+#### **Tree-Based Models**
+
+**1. Random Forest**
+- **Basis:** Bootstrap aggregating + random features
+- **Assumptions:** Minimal (non-parametric)
+- **Strengths:** Non-linearity, interactions, mixed types
+
+**2. Gradient Boosting**
+- **Basis:** Gradient descent in function space
+- **Strengths:** High performance, missing data handling
+- **Risk:** Overfitting, parameter sensitivity
+
+### **4.2 Hyperparameter Optimization**
+
+#### **HPO Performance Analysis: Methods Comparison**
+
+**Available Methods:**
+1. **Grid Search** - Exhaustive parameter grid search
+2. **Random Search** - Random sampling from parameter distributions  
+3. **Optuna TPE + Pruning** - Bayesian optimization with early stopping
+
+**Performance Characteristics:**
+
+| Method | Best For | Limitations | Recommended Trials |
+|--------|----------|-------------|-------------------|
+| **Grid Search** | Small discrete spaces (≤3 params) | Exponential growth | Full grid |
+| **Random Search** | High-dimensional continuous | May miss optimal regions | ≥50 trials |
+| **TPE + Pruning** | Large continuous spaces | Needs sufficient trials | ≥100 trials |
+
+**Common Pitfalls & Solutions:**
+
+❌ **TPE Underperformance Issues:**
+- **Too few trials:** TPE needs ≥50-100 trials to build good surrogate model
+- **Aggressive pruning:** Can discard promising candidates early
+- **Noisy objectives:** High CV variance misleads optimizer
+- **Small parameter spaces:** Random/grid search may be better
+
+✅ **Optimization Strategies:**
+```yaml
+# Conservative TPE configuration
+optuna_hpo_settings:
+  sampler: "TPE"
+  pruner: "MedianPruner"
+  n_startup_trials: 20    # More conservative startup
+  n_warmup_steps: 15      # More warmup steps
+  timeout_minutes: 60     # Longer search time
+
+# Robust random search baseline
+random_search_settings:
+  sampler: "Random"
+  pruner: "None"
+  n_trials: 100
+```
+
+---
+
+## 📈 **STAGE 5: MODEL EVALUATION & STATISTICAL VALIDATION**
+
+### **5.1 Performance Metrics**
+
+#### **Classification Metrics:**
+
+**1. Accuracy**
+```python
+Accuracy = (TP + TN) / (TP + TN + FP + FN)
+```
+
+**2. F1-Score**
+```python
+F1 = 2 * (Precision * Recall) / (Precision + Recall)
+```
+
+**3. ROC-AUC**
+```python
+AUC = ∫ TPR d(FPR)
+```
+
+#### **Regression Metrics:**
+
+**1. R-squared**
+```python
+R² = 1 - (SS_res / SS_tot)
+```
+
+**2. Mean Absolute Error**
+```python
+MAE = Σ|y_true - y_pred| / n
+```
+
+**3. Root Mean Square Error**
+```python
+RMSE = √(Σ(y_true - y_pred)² / n)
+```
+
+### **5.2 Statistical Validation Methods**
+
+#### **Cross-Validation Strategy**
+- **Stratified K-Fold** (Classification) - Maintains class distribution
+- **K-Fold** (Regression) - Simple random splitting
+- **Default:** 5-fold CV
+
+#### **Model Diagnostics**
+- **Learning Curves** - Bias vs variance analysis
+- **Validation Curves** - Hyperparameter sensitivity
+- **Residual Analysis** - Model assumption validation
+- **SHAP Analysis** - Feature importance with interactions
+
+---
+
+## 🎯 **PIPELINE LIMITATIONS & TARGET INPUT GROUPS**
+
+### **🔴 Critical Limitations**
+
+#### **Sample Size Requirements**
+
+| Component | Minimum | Recommended | Maximum Efficient |
+|-----------|---------|-------------|------------------|
+| **Statistical Tests** | n ≥ 30 | n ≥ 100 | n ≤ 10,000 |
+| **Outlier Detection** | n ≥ 50 | n ≥ 200 | No limit |
+| **Model Training** | n ≥ 50 | n ≥ 1,000 | No limit |
+| **Cross Validation** | n ≥ 100 | n ≥ 500 | n ≤ 1,000,000 |
+
+#### **Feature Space Limitations**
+
+| Component | Max Features | Limitation | Workaround |
+|-----------|--------------|------------|------------|
+| **VIF Calculation** | 50 | O(p³) complexity | Pre-selection |
+| **Correlation Matrix** | 100 | Memory O(p²) | Chunking |
+| **One-Hot Encoding** | 20 categories | Dimensionality | Alternative encoding |
+| **LOF Computation** | 1000 samples | O(n²) complexity | Sampling |
+
+### **🎯 Optimal Target Input Groups**
+
+#### **Ideal Dataset Characteristics**
+
+✅ **Dataset Size:**
+- **Rows:** 500 - 100,000
+- **Features:** 5 - 50
+- **Missing data:** < 30% per column
+- **Memory footprint:** < 1GB
+
+✅ **Data Quality:**
+- **Consistent data types** within columns
+- **Reasonable outlier percentage** (< 5%)
+- **Sufficient class representation** (≥ 30 samples per class)
+- **Low to moderate multicollinearity** (VIF < 10)
+
+#### **Method-Specific Recommendations**
+
+**Outlier Detection:**
+```yaml
+# Small datasets (n < 500)
+outlier_method: "iqr"
+
+# Medium datasets (500 ≤ n < 5000)  
+outlier_method: "ensemble"
+ensemble_methods: ['iqr', 'isoforest']
+ensemble_voting: "majority"
+
+# Large datasets (n ≥ 5000)
+outlier_method: "ensemble" 
+ensemble_methods: ['iqr', 'isoforest', 'lof']
+ensemble_voting: "union"
+ensemble_contamination: 0.05
+```
+
+**Encoding Strategy:**
+```yaml
+# Low cardinality (< 10 categories)
+encoding: "onehot"
+
+# Medium cardinality (10-50 categories)
+encoding: "binary"
+
+# High cardinality (> 50 categories)
+encoding: "target"  # or "frequency"
+```
+
+---
+
+## 📋 **COMPREHENSIVE CONFIGURATION GUIDE**
+
+### **Complete YAML Configuration Example**
+
+```yaml
+# Enhanced Data Cleaning Configuration
+data_cleaning:
+  # Outlier Detection
+  outlier_detection:
+    outlier_removal: true
+    outlier_method: "ensemble"          # iqr, isoforest, zscore, lof, elliptic_envelope, ensemble
+    
+    # Individual method parameters
+    iqr_factor: 1.5                     # IQR multiplier (1.0-3.0)
+    iforest_contam: 0.01                # Isolation Forest contamination (0.001-0.1)
+    zscore_thresh: 3.0                  # Z-score threshold (2.0-5.0)
+    lof_n_neighbors: 20                 # LOF neighbors (5-50)
+    lof_contamination: 0.01             # LOF contamination (0.001-0.1)
+    elliptic_contamination: 0.01        # Elliptic contamination (0.001-0.1)
+    elliptic_support_fraction: null     # Elliptic support (null=auto, 0.1-1.0)
+    
+    # Ensemble parameters
+    ensemble_methods: ['iqr', 'isoforest', 'lof']  # Methods to combine
+    ensemble_voting: "majority"         # union, intersection, majority
+    ensemble_contamination: 0.05        # Overall contamination rate
+  
+  # Missing Data Handling
+  missing_data:
+    impute_num: "knn"                   # mean, median, knn, iterative
+    impute_cat: "most_frequent"         # most_frequent, constant
+    knn_neighbors: 5                    # KNN imputation neighbors
+  
+  # Feature Scaling
+  scaling:
+    method: "standard"                  # standard, minmax, robust, maxabs, quantile_uniform, quantile_normal
+    
+  # Categorical Encoding  
+  encoding:
+    method: "auto"                      # auto, onehot, label, ordinal, binary, frequency, target
+    max_cardinality_onehot: 20          # Threshold for one-hot encoding
+    target_encoding_smoothing: 1.0      # Smoothing for target encoding
+  
+  # Transformations
+  transformations:
+    skew_correction: true               # Apply skew correction
+    skew_threshold: 1.0                 # Skewness threshold
+    skew_method: "yeo-johnson"          # yeo-johnson, box-cox, log, log1p
+```
+
+### **Method Selection Decision Tree**
+
+```python
+def select_outlier_method(data_size, n_features, distribution_type, computational_budget):
+    """Intelligent outlier detection method selection"""
+    
+    if data_size < 100:
+        return "iqr"  # Only robust method for small data
+    
+    elif data_size < 1000:
+        if n_features <= 5:
+            return "zscore" if distribution_type == "normal" else "iqr"
+        else:
+            return "isoforest"  # Handles high dimensions well
+    
+    elif data_size < 10000:
+        if computational_budget == "low":
+            return "iqr"
+        elif distribution_type == "gaussian":
+            return {"method": "ensemble", "methods": ["zscore", "elliptic_envelope"]}
+        else:
+            return {"method": "ensemble", "methods": ["iqr", "isoforest", "lof"]}
+    
+    else:  # Large datasets
+        if computational_budget == "high":
+            return {"method": "ensemble", "methods": ["iqr", "isoforest", "lof"], "voting": "majority"}
+        else:
+            return "isoforest"  # Scales well, single method
+```
+
+This comprehensive analysis ensures that users understand every statistical method available in DS-AutoAdvisor v3.0, can make informed decisions about method selection, and properly configure the pipeline for their specific use cases.
 
 1. **Isolation Forest:**
    ```

@@ -90,14 +90,26 @@ class ComprehensiveDataDiscovery:
     
     def _load_unified_config(self) -> Dict[str, Any]:
         """Load unified configuration"""
-        config_path = project_root / "config" / "unified_config_v2.yaml"
+        # Try v3 first, then v2, then default
+        config_paths = [
+            project_root / "config" / "unified_config_v3.yaml",
+            project_root / "config" / "unified_config_v2.yaml",
+            project_root / "config" / "unified_config.yaml"
+        ]
         
-        if config_path.exists():
-            with open(config_path, 'r') as f:
-                return yaml.safe_load(f)
-        else:
-            print(f"⚠️ Config file not found: {config_path}")
-            return self._create_default_config()
+        for config_path in config_paths:
+            if config_path.exists():
+                try:
+                    with open(config_path, 'r') as f:
+                        config = yaml.safe_load(f)
+                        print(f"📋 Loaded configuration: {config_path.name}")
+                        return config
+                except Exception as e:
+                    print(f"⚠️ Error loading {config_path}: {e}")
+                    continue
+        
+        print(f"⚠️ No config files found, using defaults")
+        return self._create_default_config()
     
     def _create_default_config(self) -> Dict[str, Any]:
         """Create default configuration"""
@@ -385,7 +397,7 @@ class ComprehensiveDataDiscovery:
             return False
     
     def _data_quality_assessment(self) -> bool:
-        """Step 3: Data quality assessment using existing enhanced quality system"""
+        """Step 3: Data quality assessment using configuration-controlled system"""
         print("\n" + "="*60)
         print("📈 STEP 3: DATA QUALITY ASSESSMENT")
         print("="*60)
@@ -396,70 +408,102 @@ class ComprehensiveDataDiscovery:
             encoding = self.config['global']['csv_encoding']
             df = pd.read_csv(self.data_path, delimiter=delimiter, encoding=encoding)
             
-            # Use existing enhanced data quality system
-            print("🔄 Running enhanced data quality assessment...")
+            # Determine which quality system to use based on configuration
+            use_enhanced = False
             
-            try:
-                # Import the existing data quality system
-                sys.path.append(str(project_root / "src" / "data_quality_system"))
-                from enhanced_quality_system import DataQualityAssessor
-                
-                # Initialize the quality assessor
-                assessor = DataQualityAssessor()
-                
-                # Determine target column (try common target column names)
-                target_column = None
-                common_targets = ['Churn', 'target', 'label', 'y']
-                for target in common_targets:
-                    if target in df.columns:
-                        target_column = target
-                        break
-                
-                # Run comprehensive quality assessment
-                quality_report = assessor.assess_quality(df, target_column=target_column)
-                
-                # Convert to compatible format for saving
-                quality_metrics = {
-                    'overall_score': quality_report.overall_score,
-                    'total_issues': quality_report.total_issues,
-                    'issues_by_severity': quality_report.issues_by_severity,
-                    'column_scores': quality_report.column_scores,
-                    'recommendations': quality_report.recommendations,
-                    'metadata': quality_report.metadata,
-                    'target_column': target_column,
-                    'issues': [
-                        {
-                            'severity': issue.severity,
-                            'column': issue.column,
-                            'issue_type': issue.issue_type,
-                            'description': issue.description,
-                            'suggested_action': issue.suggested_action,
-                            'affected_rows_count': len(issue.affected_rows)
-                        }
-                        for issue in quality_report.issues
-                    ]
-                }
-                
-                print(f"✅ Enhanced quality assessment completed")
-                print(f"   📊 Overall Quality Score: {quality_report.overall_score:.1f}/100")
-                print(f"   ⚠️ Total Issues: {quality_report.total_issues}")
-                print(f"   🎯 Target Column: {target_column or 'Auto-detected'}")
-                
-                # Show issues by severity
-                if quality_report.total_issues > 0:
-                    print(f"\n⚠️ Issues by Severity:")
-                    for severity, count in quality_report.issues_by_severity.items():
-                        if count > 0:
-                            print(f"   {severity.upper()}: {count}")
-                
-                # Show top recommendations
-                if quality_report.recommendations:
-                    print(f"\n💡 Key Recommendations:")
-                    for i, rec in enumerate(quality_report.recommendations[:3], 1):
-                        print(f"   {i}. {rec}")
-                
-            except ImportError:
-                print("⚠️ Enhanced quality system not available, falling back to basic assessment...")
+            # Check configuration for enhanced system preference
+            if 'custom_mode' in self.config:
+                discovery_config = self.config.get('custom_mode', {}).get('data_discovery', {})
+                quality_config = discovery_config.get('quality_assessment', {})
+                use_enhanced = quality_config.get('use_enhanced_system', False)
+            elif 'fast_mode' in self.config:
+                discovery_config = self.config.get('fast_mode', {}).get('data_discovery', {})
+                quality_config = discovery_config.get('quality_assessment', {})
+                use_enhanced = quality_config.get('use_enhanced_system', False)
+            
+            print(f"🔄 Running {'enhanced' if use_enhanced else 'basic'} data quality assessment...")
+            
+            if use_enhanced:
+                try:
+                    # Import the enhanced data quality system
+                    sys.path.append(str(project_root / "src" / "data_quality_system"))
+                    from enhanced_quality_system import DataQualityAssessor
+                    
+                    # Initialize the quality assessor with config
+                    config_path = project_root / "config" / "unified_config_v3.yaml"
+                    assessor = DataQualityAssessor(config_path=str(config_path))
+                    
+                    # Determine target column (try common target column names)
+                    target_column = None
+                    common_targets = ['Churn', 'target', 'label', 'y']
+                    for target in common_targets:
+                        if target in df.columns:
+                            target_column = target
+                            break
+                    
+                    # Run comprehensive quality assessment
+                    quality_report = assessor.assess_quality(df, target_column=target_column)
+                    
+                    # Convert enhanced report to compatible format for saving
+                    quality_metrics = {
+                        'overall_score': quality_report.overall_score,
+                        'total_issues': quality_report.total_issues,
+                        'issues_by_severity': quality_report.issues_by_severity,
+                        'column_scores': quality_report.column_scores,
+                        'recommendations': quality_report.recommendations,
+                        'metadata': quality_report.metadata,
+                        'target_column': target_column,
+                        'enhanced_system_used': True,
+                        'component_results': {
+                            'type_inference': quality_report.type_inference_results,
+                            'pattern_detection': quality_report.pattern_detection_results,
+                            'quality_metrics': quality_report.quality_metrics_results
+                        },
+                        'issues': [
+                            {
+                                'severity': issue.severity,
+                                'column': issue.column,
+                                'issue_type': issue.issue_type,
+                                'description': issue.description,
+                                'suggested_action': issue.suggested_action,
+                                'affected_rows_count': len(issue.affected_rows),
+                                'metadata': issue.metadata
+                            }
+                            for issue in quality_report.issues
+                        ]
+                    }
+                    
+                    print(f"✅ Enhanced quality assessment completed")
+                    print(f"   📊 Overall Quality Score: {quality_report.overall_score:.1f}/100")
+                    print(f"   ⚠️ Total Issues: {quality_report.total_issues}")
+                    print(f"   🎯 Target Column: {target_column or 'Auto-detected'}")
+                    
+                    # Show issues by severity
+                    if quality_report.total_issues > 0:
+                        print(f"\n⚠️ Issues by Severity:")
+                        for severity, count in quality_report.issues_by_severity.items():
+                            if count > 0:
+                                print(f"   {severity.upper()}: {count}")
+                    
+                    # Show top recommendations
+                    if quality_report.recommendations:
+                        print(f"\n💡 Key Recommendations:")
+                        for i, rec in enumerate(quality_report.recommendations[:3], 1):
+                            print(f"   {i}. {rec}")
+                    
+                    # Save detailed enhanced report
+                    enhanced_report_path = self.discovery_outputs['reports'] / "enhanced_quality_assessment.json"
+                    assessor.save_assessment_report(quality_report, str(enhanced_report_path))
+                    
+                except ImportError as e:
+                    print(f"⚠️ Enhanced quality system not available ({e}), falling back to basic assessment...")
+                    return self._basic_quality_assessment_fallback(df)
+                except Exception as e:
+                    print(f"⚠️ Enhanced quality assessment failed ({e}), falling back to basic assessment...")
+                    return self._basic_quality_assessment_fallback(df)
+            else:
+                # Use basic quality assessment
+                print("⚠️ Using basic quality assessment (enhanced system disabled in config)")
                 return self._basic_quality_assessment_fallback(df)
             
             # Save quality assessment

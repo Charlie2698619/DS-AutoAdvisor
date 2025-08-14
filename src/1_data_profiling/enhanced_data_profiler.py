@@ -784,3 +784,4 @@ if __name__ == "__main__":
     for col_name, col_profile in enhanced_profile.columns.items():
         if col_profile.recommended_actions:
             print(f"  {col_name}: {', '.join(col_profile.recommended_actions)}")
+

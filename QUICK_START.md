@@ -85,6 +85,43 @@ python 01_data_discovery.py --enhanced-profiling
 - ⚙️ `cleaning_config_template.yaml` (THE FILE YOU NEED TO EDIT)
 - 📈 Data quality scores and recommendations
 - 💾 Cached results for fast reuse
+- 🔍 **Enhanced Quality Assessment** (multi-stage data type inference & pattern detection)
+
+#### 🔍 Enhanced Data Quality System
+
+The discovery stage now includes an **Enhanced Data Quality System** that provides comprehensive data analysis:
+
+**🎯 Multi-Stage Data Type Inference:**
+- **Stage 1:** Basic statistical analysis (mean, std, nulls)
+- **Stage 2:** Advanced pattern detection (emails, phones, IDs, currency)
+- **Stage 3:** Business rule validation with confidence scoring
+- **Stage 4:** Cross-validation and final classification
+
+**📊 Quality Metrics (6 Dimensions):**
+- **Completeness:** Missing value analysis
+- **Consistency:** Format and pattern consistency
+- **Accuracy:** Data type and format correctness
+- **Validity:** Business rule compliance
+- **Uniqueness:** Duplicate and ID pattern detection
+- **Timeliness:** Date range and recency analysis
+
+**🔧 Configuration Control:**
+```yaml
+# Enable/disable in unified_config_v3.yaml
+enhanced_quality_system:
+  components:
+    enable_type_inference: true      # Multi-stage type detection
+    enable_pattern_detection: true   # Business pattern recognition
+    enable_quality_metrics: true     # 6-dimension quality scoring
+    enable_cross_validation: true    # Cross-component validation
+```
+
+**💡 What You Get:**
+- Intelligent data type detection (beyond pandas dtypes)
+- Business pattern recognition (emails, phones, IDs, currency)
+- Comprehensive quality scores (0-100 scale)
+- Actionable recommendations for data improvements
+- Detailed JSON reports with confidence scores
 
 ### Step 1.5: Edit Cleaning Template 🛑 REQUIRED
 
@@ -119,6 +156,43 @@ column_transformations:
 - **Age/counts:** Use `median` imputation + `cap` outliers
 - **Categories:** Use `onehot` (low cardinality) or `target` (high cardinality)
 - **Text:** Enable `text_cleaning: true`
+
+#### 🎯 Quality-Driven Cleaning Decisions
+
+The Enhanced Quality System helps you make better cleaning decisions:
+
+**📊 Quality Score Interpretation:**
+- **85-100:** Excellent quality - minimal cleaning needed
+- **60-84:** Good quality - standard cleaning recommended
+- **40-59:** Fair quality - targeted improvements needed
+- **0-39:** Poor quality - extensive cleaning required
+
+**🔍 Pattern-Based Recommendations:**
+```yaml
+# Email patterns detected → Keep as categorical
+email_column:
+  encoding: 'label'              # Don't one-hot encode emails
+  
+# Phone patterns detected → Clean format first
+phone_column:
+  text_cleaning: true            # Standardize phone formats
+  encoding: 'label'
+  
+# Currency patterns detected → Convert to numeric
+price_column:
+  transformation: 'currency_to_numeric'  # Remove $ and commas
+  scaling: 'standard'
+  
+# ID patterns detected → Exclude from modeling
+customer_id:
+  exclude_from_modeling: true    # Don't use IDs as features
+```
+
+**⚠️ Quality Alerts:**
+- **Type Mismatches:** Numbers stored as text
+- **Format Inconsistencies:** Mixed date formats
+- **Business Rule Violations:** Invalid email domains
+- **Anomaly Patterns:** Unusual value distributions
 
 ### Step 2: Test Your Pipeline ⏱️ 2-10 minutes
 
@@ -229,6 +303,35 @@ python 03_full_pipeline.py --enable-mlflow
 | **training_report.json** | `02_stage_testing_*/` | Shows model rankings and performance |
 | **models_index.json** | `03_production_*/models/` | Lists your packaged models |
 | **model_server.py** | `03_production_*/deployment/` | Ready-to-run model serving script |
+| **enhanced_quality_report.json** | `01_discovery_*/reports/` | **NEW** - Comprehensive quality analysis |
+| **data_profiling_report.html** | `data_profiles/` | **NEW** - Interactive profiling dashboard |
+
+### 🔍 Enhanced Quality Report Structure
+
+The `enhanced_quality_report.json` contains detailed analysis:
+
+```json
+{
+  "overall_quality_score": 73.2,
+  "column_analysis": {
+    "customer_email": {
+      "inferred_type": "business_email",
+      "confidence": 0.95,
+      "quality_score": 89.4,
+      "patterns_detected": ["email_format"],
+      "recommendations": ["Validate email domains"]
+    }
+  },
+  "quality_dimensions": {
+    "completeness": 85.2,
+    "consistency": 67.8,
+    "accuracy": 92.1,
+    "validity": 78.5,
+    "uniqueness": 94.3,
+    "timeliness": 71.0
+  }
+}
+```
 
 ---
 ## ⚠️ Important Notes

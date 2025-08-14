@@ -214,7 +214,8 @@ class StageTester:
                     output_path=str(output_path),
                     log_path=str(log_path),
                     target_column=global_config.get('target_column'),
-                    verbose=config.get('verbose', True)
+                    verbose=config.get('verbose', True),
+                    global_config=self.config_manager.config  # Pass full config for global access
                 )
             
             # Create cleaner and clean data

@@ -40,15 +40,16 @@
 ## 📋 Table of Contents
 1. [Quick Start (5 Minutes)](#quick-start)
 2. [Plugin System](#plugin-system)
-3. [The 3-Step Workflow](#workflow)
-4. [Important Manual Steps](#manual-steps)
-5. [What You Get From Each Step](#outputs)
-6. [Common Use Cases](#use-cases)
-7. [Configuration Guide](#configuration)
-8. [MLflow Tracking](#mlflow)
-9. [Design Choices & Limitations](#limitations)
-10. [Troubleshooting](#troubleshooting)
-11. [Future Features](#roadmap)
+3. [Enhanced Data Quality System](#enhanced-data-quality-system)
+4. [The 3-Step Workflow](#workflow)
+5. [Important Manual Steps](#manual-steps)
+6. [What You Get From Each Step](#outputs)
+7. [Common Use Cases](#use-cases)
+8. [Configuration Guide](#configuration)
+9. [MLflow Tracking](#mlflow)
+10. [Design Choices & Limitations](#limitations)
+11. [Troubleshooting](#troubleshooting)
+12. [Future Features](#roadmap)
 
 ---
 ## Quick Start
@@ -129,6 +130,273 @@ python plugin_manager.py cron-setup --reference-data data/training_data.csv --cu
 
 ---
 
+## 🔍 Enhanced Data Quality System
+
+**Intelligent multi-stage data analysis with pattern recognition and quality scoring**
+
+DS-AutoAdvisor includes a comprehensive **Enhanced Data Quality System** that goes beyond basic pandas profiling to provide intelligent data type inference, business pattern detection, and multi-dimensional quality assessment.
+
+### 🎯 Core Capabilities
+
+#### **Multi-Stage Data Type Inference**
+**Method:** Heuristic classification with confidence scoring
+
+```
+Stage 1: Statistical Analysis → Basic type detection (numeric, text, datetime)
+    ↓
+Stage 2: Pattern Recognition → Business patterns (email, phone, ID, currency)
+    ↓  
+Stage 3: Business Rules → Domain validation and compliance checking
+    ↓
+Stage 4: Cross-Validation → Confidence scoring and final classification
+```
+
+**Supported Data Types:**
+- **Numeric:** `integer`, `float`, `currency`, `percentage` 
+- **Categorical:** `low_cardinality`, `high_cardinality`, `ordinal`
+- **Business:** `email`, `phone`, `ssn`, `credit_card`, `uuid`
+- **Temporal:** `date`, `datetime`, `timestamp`
+- **Identifiers:** `sequential_id`, `composite_key`
+
+#### **Advanced Pattern Detection**
+
+**Business Patterns:**
+```python
+# Email detection
+"user@company.com" → business_email (confidence: 0.95)
+
+# Phone number recognition  
+"+1-555-123-4567" → phone_number (confidence: 0.85)
+
+# Currency formatting
+"$1,234.56" → currency (confidence: 0.90)
+
+# UUID identification
+"123e4567-e89b-12d3-a456-426614174000" → uuid (confidence: 0.98)
+```
+
+**Statistical Patterns:**
+- Sequential ID detection (1, 2, 3, 4...)
+- Distribution analysis (normal, skewed, bimodal)
+- Outlier identification (IQR, Z-score methods)
+- Correlation analysis between columns
+
+#### **6-Dimensional Quality Assessment**
+
+| Dimension | Weight | What It Measures | Example Issue |
+|-----------|--------|------------------|---------------|
+| **Completeness** | 25% | Missing value ratio | 15% of emails are null |
+| **Consistency** | 20% | Format standardization | Mixed date formats |
+| **Accuracy** | 20% | Type correctness | Numbers stored as text |
+| **Validity** | 15% | Business rule compliance | Invalid email domains |
+| **Uniqueness** | 10% | Duplicate detection | Repeated customer IDs |
+| **Timeliness** | 10% | Date range validity | Future birth dates |
+
+**Quality Score Calculation:**
+```python
+# Weighted scoring across dimensions
+overall_score = (
+    completeness * 0.25 +
+    consistency * 0.20 + 
+    accuracy * 0.20 +
+    validity * 0.15 +
+    uniqueness * 0.10 +
+    timeliness * 0.10
+)
+```
+
+### 🔧 Configuration & Usage
+
+#### **Enable/Disable Components**
+```yaml
+# config/unified_config_v3.yaml
+enhanced_quality_system:
+  components:
+    enable_type_inference: true      # Multi-stage type detection
+    enable_pattern_detection: true   # Business pattern recognition  
+    enable_quality_metrics: true     # 6-dimension quality scoring
+    enable_cross_validation: true    # Cross-component validation
+    
+  reporting:
+    generate_detailed_report: true   # Full JSON analysis report
+    include_recommendations: true    # Actionable improvement suggestions
+    include_sample_data: true        # Example values for patterns
+    max_sample_size: 100            # Limit sample data size
+```
+
+#### **Quality Thresholds**
+```yaml
+thresholds:
+  critical_score_threshold: 40      # Data needs immediate attention
+  warning_score_threshold: 60       # Data needs improvement  
+  good_score_threshold: 85          # Data is in good condition
+```
+
+#### **Pattern Detection Settings**
+```yaml
+pattern_detection:
+  business_patterns:
+    email:
+      pattern: '^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$'
+      confidence_threshold: 0.8
+    phone:
+      pattern: '^[\\+]?[1-9]?[0-9]{7,15}$'
+      confidence_threshold: 0.7
+  
+  anomaly_detection:
+    enable_outlier_detection: true
+    outlier_methods: ['iqr', 'zscore']
+    outlier_threshold: 3.0
+```
+
+### 📊 Output Analysis
+
+#### **Enhanced Quality Report**
+Location: `pipeline_outputs/01_discovery_*/reports/enhanced_quality_report.json`
+
+```json
+{
+  "metadata": {
+    "analysis_timestamp": "2025-01-15T10:30:00Z",
+    "dataset_shape": [1000, 15],
+    "analysis_duration_seconds": 23.4
+  },
+  "overall_assessment": {
+    "quality_score": 73.2,
+    "quality_grade": "Good",
+    "critical_issues": 2,
+    "warning_issues": 5,
+    "recommendations_count": 8
+  },
+  "column_analysis": {
+    "customer_email": {
+      "inferred_type": "business_email",
+      "confidence": 0.95,
+      "quality_score": 89.4,
+      "patterns_detected": ["email_format"],
+      "quality_issues": [],
+      "recommendations": [
+        "Validate email domains against business rules",
+        "Consider standardizing email case"
+      ],
+      "sample_values": ["user@company.com", "admin@business.org"]
+    },
+    "phone_number": {
+      "inferred_type": "phone",
+      "confidence": 0.82,
+      "quality_score": 67.1,
+      "patterns_detected": ["phone_format"],
+      "quality_issues": [
+        "15% of values missing area codes",
+        "Mixed international/domestic formats"
+      ],
+      "recommendations": [
+        "Standardize phone number format",
+        "Implement format validation"
+      ]
+    }
+  },
+  "quality_dimensions": {
+    "completeness": {
+      "score": 85.2,
+      "issues": ["phone_number: 8% missing", "address: 12% missing"]
+    },
+    "consistency": {
+      "score": 67.8, 
+      "issues": ["date_format: 3 different formats detected"]
+    },
+    "accuracy": {
+      "score": 92.1,
+      "issues": ["salary: stored as text with currency symbols"]
+    }
+  }
+}
+```
+
+#### **Data Profiling Integration**
+The enhanced system integrates with ydata-profiling to create comprehensive reports:
+
+- **`data_profiling_report.html`** - Interactive visual dashboard
+- **`raw_profiling_data.json`** - Machine-readable profiling data
+- **`enhanced_quality_report.json`** - Advanced quality analysis
+
+### 🎯 Quality-Driven Workflows
+
+#### **High-Quality Data (Score: 85-100)**
+```bash
+# Minimal intervention needed
+python 01_data_discovery.py --data data/clean_data.csv
+# Review quality report → proceed with light cleaning
+python 02_stage_testing.py --mode fast --stage all
+```
+
+#### **Moderate-Quality Data (Score: 60-84)**  
+```bash
+# Standard cleaning workflow
+python 01_data_discovery.py --data data/standard_data.csv
+# Review quality report → customize cleaning template
+# Edit: cleaning_config_template.yaml based on recommendations
+python 02_stage_testing.py --stage cleaning  # Test cleaning
+python 02_stage_testing.py --stage training
+```
+
+#### **Poor-Quality Data (Score: <60)**
+```bash
+# Extensive cleaning required
+python 01_data_discovery.py --data data/messy_data.csv
+# Analyze quality report thoroughly
+# Multiple cleaning iterations:
+python 02_stage_testing.py --stage cleaning
+# Edit cleaning template based on results
+python 02_stage_testing.py --stage cleaning  # Test again
+# Repeat until quality improves
+```
+
+### 💡 Best Practices
+
+#### **Interpreting Quality Scores**
+- **90-100:** Production-ready data
+- **80-89:** Minor issues, proceed with caution
+- **70-79:** Moderate cleaning needed
+- **60-69:** Significant data quality work required
+- **<60:** Extensive data remediation needed
+
+#### **Using Pattern Detection Results**
+```yaml
+# Email patterns → Use label encoding (not one-hot)
+email_column:
+  encoding: 'label'
+  
+# Currency patterns → Extract numeric values  
+price_column:
+  transformation: 'extract_numeric'
+  scaling: 'standard'
+  
+# Phone patterns → Standardize format first
+phone_column:
+  text_cleaning: true
+  pattern_standardization: 'phone'
+  
+# ID patterns → Exclude from modeling
+customer_id:
+  exclude_from_modeling: true
+```
+
+#### **Quality Monitoring**
+```python
+# Track quality scores over time
+quality_scores = []
+for dataset in datasets:
+    score = run_quality_analysis(dataset)
+    quality_scores.append(score)
+    
+# Alert on quality degradation
+if current_score < baseline_score * 0.9:
+    send_quality_alert()
+```
+
+---
+
 ## The 3-Step Workflow
 
 ### 🔍 Step 1: Data Discovery & Configuration
@@ -156,6 +424,9 @@ python 01_data_discovery.py --enhanced-profiling
 - 📝 Data quality assessment with scores
 - ⚙️ **Generates cleaning template** (the key output!)
 - 💾 Caches expensive computations for reuse
+- 🔍 **Enhanced Quality System** - Multi-stage data type inference with pattern detection
+- 📊 **6-Dimensional Quality Scoring** - Completeness, consistency, accuracy, validity, uniqueness, timeliness
+- 🎯 **Business Pattern Recognition** - Emails, phones, IDs, currency, dates with confidence scores
 
 **Key Output:** `cleaning_config_template.yaml` - THIS IS WHAT YOU EDIT!
 
@@ -292,16 +563,17 @@ After Step 1, you MUST review and customize the cleaning template:
 ## What You Get From Each Step
 | Step | Folder | Key Files | What They Contain |
 |------|--------|-----------|-------------------|
-| **1** | `01_discovery_*` | `configs/cleaning_config_template.yaml`<br>`reports/profiling_report.html`<br>`cache/` | **The cleaning template to edit**<br>Visual data profiling report<br>Cached computations for reuse |
+| **1** | `01_discovery_*` | `configs/cleaning_config_template.yaml`<br>`reports/profiling_report.html`<br>`reports/enhanced_quality_report.json`<br>`data_profiles/data_profiling_report.html`<br>`cache/` | **The cleaning template to edit**<br>Visual data profiling report<br>**Enhanced quality analysis with pattern detection**<br>**Interactive profiling dashboard**<br>Cached computations for reuse |
 | **2** | `02_stage_testing_*` | `training_report.json`<br>`models/*.pkl`<br>`cleaned_data/` | Model rankings and metrics<br>Trained model files<br>Cleaned datasets (using your rules) |
 | **3** | `03_production_artifacts_*` | `models/` (packaged)<br>`deployment/model_server.py`<br>`deployment/api_template.py`<br>`documentation/` | Production-ready models<br>Flask serving script<br>REST API template<br>Deployment guides |
 
 ### 🎯 The Most Important Files
 
 1. **`cleaning_config_template.yaml`** (Step 1) - YOU MUST EDIT THIS
-2. **`training_report.json`** (Step 2) - Contains your model rankings
-3. **`models_index.json`** (Step 3) - Lists packaged models and metadata
-4. **`model_server.py`** (Step 3) - Ready-to-run model serving script
+2. **`enhanced_quality_report.json`** (Step 1) - Comprehensive data quality analysis with pattern detection
+3. **`training_report.json`** (Step 2) - Contains your model rankings
+4. **`models_index.json`** (Step 3) - Lists packaged models and metadata
+5. **`model_server.py`** (Step 3) - Ready-to-run model serving script
 
 ---
 ## Common Use Cases
@@ -466,6 +738,8 @@ python 03_full_pipeline.py --enable-mlflow
 | **MLflow UI empty** | Check `--enable-mlflow` flag | Ensure MLflow enabled in Step 3 |
 | **"No models packaged"** | Check `training_report.json` | Verify Stage 2 completed successfully |
 | **API script fails** | Check model files exist | Verify models/ directory has .pkl files |
+| **Quality score 0.0** | Check enhanced system config | Verify `enhanced_quality_system.enabled: true` in config |
+| **Pattern detection not working** | Check pattern configuration | Review `pattern_detection` settings in unified_config_v3.yaml |
 
 ### 🔍 Debugging Steps
 
@@ -484,6 +758,12 @@ python 03_full_pipeline.py --enable-mlflow
    ```bash
    ls logs/
    tail -f logs/audit.log
+   ```
+
+4. **Review quality analysis:**
+   ```bash
+   cat pipeline_outputs/01_discovery_*/reports/enhanced_quality_report.json
+   # Check overall_assessment.quality_score and critical_issues
    ```
 
 ### 💾 File Locations Cheat Sheet
@@ -546,8 +826,10 @@ python 03_full_pipeline.py --enable-mlflow
 ✅ **Production-ready:** Deployment scripts, docs, APIs included  
 ✅ **Extensible:** Easy to add stages, models, or deployment targets  
 ✅ **Enhanced:** Advanced HPO and monitoring capabilities out-of-the-box
+✅ **Intelligent:** Multi-stage data type inference with business pattern recognition
+✅ **Quality-Driven:** 6-dimensional quality assessment guides data preparation decisions
 
-**Perfect for:** Data scientists who want fast iteration with full control over their ML pipeline, enhanced with production-grade optimization and monitoring.
+**Perfect for:** Data scientists who want fast iteration with full control over their ML pipeline, enhanced with production-grade optimization, monitoring, and intelligent data quality analysis.
 
 ---
 
