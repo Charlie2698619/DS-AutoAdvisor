@@ -500,23 +500,288 @@ where e_t are residuals
 ```
 
 **Interpretation:**
-- ✅ **No autocorrelation:** DW ≈ 2
-- ⚠️ **Positive autocorrelation:** DW < 2
-- ⚠️ **Negative autocorrelation:** DW > 2
+- ✅ **No autocorrelation:** 1.5 < DW < 2.5
+- ⚠️ **Positive autocorrelation:** DW < 1.5
+- ⚠️ **Negative autocorrelation:** DW > 2.5
 
-### **3.2 Model Recommendation Logic**
+#### **Class Balance Analysis**
 
-#### **Decision Matrix:**
+**Class Imbalance Detection**
+```python
+# Major class proportion calculation
+major_class_prop = max(class_counts) / total_samples
+imbalance_ratio = major_class_prop / minor_class_prop
 
-| Data Characteristics | Assumptions Violated | Recommended Models |
-|---------------------|---------------------|-------------------|
-| **Small Dataset (n<1000)** | None | Linear/Logistic Regression |
-| **Large Dataset (n>10000)** | None | Ridge/Lasso Regression |
-| **Non-linear relationships** | Linearity | Tree-based (RF, XGBoost) |
-| **High multicollinearity** | Independence | Ridge/Lasso/Elastic Net |
-| **Non-normal residuals** | Normality | Robust methods (Huber) |
-| **Heteroscedasticity** | Homoscedasticity | Robust standard errors |
-| **Class imbalance** | Balanced classes | Balanced ensembles |
+# Threshold-based detection
+imbalance_detected = major_class_prop > threshold (default: 0.9)
+```
+
+**Properties:**
+- **Purpose:** Identify class distribution problems in classification
+- **Metrics:** Class proportions, imbalance ratios, minimum class sizes
+- **Thresholds:** Configurable imbalance detection (default: 90% majority class)
+
+### **3.2 Enhanced Statistical Testing Implementation**
+
+The pipeline implements sophisticated statistical testing with performance optimizations and robust error handling.
+
+#### **Scalable Testing Framework**
+
+**Performance Optimizations:**
+
+| Feature | Purpose | Configuration | Impact |
+|---------|---------|---------------|---------|
+| **Sampling** | Handle large datasets | `normality_max_sample: 5000` | O(log n) vs O(n) |
+| **Chunking** | Memory management | `chunk_size: 10000` | Constant memory |
+| **Feature Limiting** | VIF calculation control | `max_features_vif: 50` | Prevent O(p³) explosion |
+| **Early Stopping** | Skip invalid tests | Minimum sample checks | Fail-fast validation |
+
+#### **Advanced Normality Testing**
+
+**Test Selection Algorithm:**
+```python
+# Automatic test method selection
+if sample_size <= 5000:
+    method = "shapiro"        # Highest power for small samples
+elif sample_size > 5000:
+    method = "anderson"       # Better for large samples
+elif quick_screening:
+    method = "jarque_bera"    # Fast asymptotic test
+else:
+    method = "normaltest"     # D'Agostino omnibus test
+```
+
+**Enhanced Metrics:**
+- **Skewness:** `γ₁ = E[(X-μ)³]/σ³` - measures asymmetry
+- **Kurtosis:** `γ₂ = E[(X-μ)⁴]/σ⁴ - 3` - measures tail heaviness
+- **Sample Size:** Actual observations used after dropna()
+- **Test Power:** Method-specific statistical power
+
+#### **Robust Multicollinearity Detection**
+
+**Two-Stage Approach:**
+```python
+# Stage 1: Fast correlation screening
+correlation_matrix = X.corr().abs()
+high_corr_pairs = correlation_matrix > threshold
+
+# Stage 2: VIF calculation (if feasible)
+if n_features <= max_features_vif:
+    VIF_j = 1 / (1 - R²_j)  # For each feature j
+```
+
+**Scalability Features:**
+- **Correlation First:** O(p²) vs O(p³) for VIF
+- **Feature Limiting:** Skip VIF for high-dimensional data
+- **Sampling:** Use representative samples for VIF calculation
+- **Error Handling:** Graceful degradation for numerical issues
+
+#### **Comprehensive Homoscedasticity Testing**
+
+**Test Methods Available:**
+
+| Method | Statistical Basis | Null Hypothesis | Alternative |
+|--------|------------------|-----------------|-------------|
+| **Breusch-Pagan** | LM = n·R² ~ χ²(p) | Homoscedastic errors | Heteroscedastic |
+| **White Test** | More general form | Constant variance | Variance depends on X |
+
+**Mathematical Implementation:**
+```python
+# Breusch-Pagan Test
+# 1. Fit OLS model: y = Xβ + ε
+# 2. Get residuals: e = y - Xβ̂  
+# 3. Auxiliary regression: e² = Zγ + u
+# 4. Test statistic: LM = n·R²_aux ~ χ²(p)
+
+# White Test  
+# 1. Include all X, X², X₁X₂ terms in auxiliary regression
+# 2. More robust to functional form
+```
+
+#### **Advanced Linearity Assessment**
+
+**Harvey-Collier Test Implementation:**
+```python
+# Mathematical foundation:
+# H₀: E[y|x] is linear in x
+# H₁: E[y|x] is not linear in x
+
+# Test procedure:
+# 1. Order observations by fitted values
+# 2. Calculate recursive residuals
+# 3. Test if mean of recursive residuals = 0
+# 4. t-statistic follows t-distribution
+```
+
+**Properties:**
+- **Purpose:** Detect non-linear relationships in mean function
+- **Power:** High against polynomial alternatives
+- **Assumptions:** Requires adequate sample size (n > p + 10)
+
+### **3.3 Model Recommendation Logic**
+
+### **3.3 Model Recommendation Logic**
+
+The pipeline implements intelligent model recommendation based on comprehensive assumption testing and target variable analysis.
+
+#### **Target Type Inference**
+
+**Automatic Classification:**
+```python
+def infer_target_type(df, target, class_threshold=20):
+    n_unique = df[target].nunique()
+    dtype = df[target].dtype
+    
+    # Rule-based classification
+    if dtype in ["object", "category", "bool"]:
+        return "classification"
+    if np.issubdtype(dtype, np.integer) and n_unique <= class_threshold:
+        return "classification" 
+    return "regression"
+```
+
+**Classification Criteria:**
+
+| Condition | Target Type | Reasoning |
+|-----------|-------------|-----------|
+| `dtype` in ["object", "category", "bool"] | Classification | Categorical data types |
+| Integer dtype + `n_unique ≤ 20` | Classification | Discrete classes |
+| Continuous numeric | Regression | Continuous target variable |
+
+#### **Assumption-Based Model Selection**
+
+**Regression Models:**
+
+| Assumptions Status | Violations | Recommended Models | Rationale |
+|-------------------|------------|-------------------|-----------|
+| **All Passed** | None | LinearRegression, Ridge, Lasso | OLS assumptions satisfied |
+| **Multicollinearity** | High VIF/correlation | Ridge, Lasso | Regularization handles correlation |
+| **Non-linearity** | Linearity violated | RandomForest, GradientBoosting, HistGradientBoosting | Tree models capture non-linear patterns |
+| **Multiple Violations** | Complex patterns | XGBoostRegressor, LightGBMRegressor, SVR | Robust ensemble methods |
+
+**Classification Models:**
+
+| Data Characteristics | Class Balance | Recommended Models | Rationale |
+|---------------------|---------------|-------------------|-----------|
+| **Assumptions OK** | Balanced | LogisticRegression, LinearSVC | Linear separability |
+| **Class Imbalance** | Imbalanced | XGBoostClassifier, BalancedRandomForest, CatBoost | Built-in imbalance handling |
+| **Complex Patterns** | Balanced | RandomForestClassifier, GradientBoosting, ExtraTrees | Non-parametric robustness |
+
+#### **Advanced Recommendation Features**
+
+**Risk Assessment Matrix:**
+
+```python
+# Risk scoring for model recommendations
+risk_factors = {
+    "normality_violation": {"risk": "medium", "models": ["Ridge", "Lasso"]},
+    "multicollinearity": {"risk": "high", "models": ["Ridge", "Lasso", "ElasticNet"]},
+    "heteroscedasticity": {"risk": "medium", "models": ["RobustRegression", "GLM"]},
+    "non_linearity": {"risk": "high", "models": ["TreeBased", "KernelMethods"]},
+    "autocorrelation": {"risk": "high", "models": ["TimeSeriesModels", "ARIMA"]},
+    "class_imbalance": {"risk": "critical", "models": ["BalancedEnsembles", "SMOTE"]}
+}
+```
+
+**Mathematical Foundations by Model Class:**
+
+**Linear Models:**
+```python
+# OLS: minimize ||y - Xβ||²
+# Ridge: minimize ||y - Xβ||² + α||β||²
+# Lasso: minimize ||y - Xβ||² + α||β||₁
+# ElasticNet: minimize ||y - Xβ||² + α₁||β||₁ + α₂||β||²
+```
+
+**Tree-Based Models:**
+```python
+# Random Forest: Bootstrap aggregating of decision trees
+# Gradient Boosting: Sequentially fit trees to residuals
+# XGBoost: Optimized gradient boosting with regularization
+```
+
+**Properties:**
+- **Robustness:** Tree models handle non-linearity, interactions, missing values
+- **Interpretability:** Linear models provide coefficient interpretation
+- **Scalability:** Different models for different data sizes and complexity
+
+#### **Business Logic Integration**
+
+**Model Selection Criteria:**
+
+1. **Statistical Validity:** Ensure assumptions are met or model is robust to violations
+2. **Business Requirements:** Consider interpretability vs accuracy trade-offs  
+3. **Data Characteristics:** Match model complexity to data size and patterns
+4. **Computational Constraints:** Consider training time and inference speed
+5. **Maintenance Requirements:** Factor in model monitoring and updates
+
+**Recommendation Confidence Scoring:**
+```python
+confidence_score = (
+    assumption_tests_passed_ratio * 0.4 +
+    data_quality_score * 0.3 +
+    sample_size_adequacy * 0.2 +
+    feature_quality_score * 0.1
+)
+```
+
+### **3.4 Statistical Recommendation Generation**
+
+The pipeline provides actionable recommendations based on failed assumptions and detected data patterns.
+
+#### **Transformation Recommendations**
+
+**Normality Violations:**
+- **Log Transformation:** For right-skewed data (`log(x + 1)`)
+- **Square Root:** For count data (`√x`)
+- **Box-Cox:** For general power transformations (`(x^λ - 1)/λ`)
+- **Yeo-Johnson:** For negative values handling
+
+**Non-linearity Solutions:**
+- **Polynomial Features:** Add x², x³ terms for curved relationships
+- **Interaction Terms:** Capture feature interactions (x₁ × x₂)
+- **Spline Features:** Piecewise polynomial fitting
+- **Non-linear Models:** Switch to tree-based or kernel methods
+
+#### **Feature Engineering Recommendations**
+
+**Multicollinearity Handling:**
+- **Feature Selection:** Remove high-VIF features systematically
+- **Principal Component Analysis:** Orthogonal transformation
+- **Regularization:** L1/L2 penalties for automatic selection
+- **Domain Knowledge:** Combine correlated features meaningfully
+
+**Class Imbalance Solutions:**
+- **SMOTE:** Synthetic minority oversampling
+- **Random Undersampling:** Reduce majority class
+- **Stratified Sampling:** Maintain proportions in train/test
+- **Cost-Sensitive Learning:** Weighted loss functions
+
+#### **Model-Specific Recommendations**
+
+**For Linear Models:**
+```python
+recommendations = {
+    "preprocessing": ["StandardScaler", "PowerTransformer"],
+    "validation": ["cross_validation", "residual_analysis"],
+    "diagnostics": ["leverage_plots", "influence_measures"]
+}
+```
+
+**For Tree-Based Models:**
+```python
+recommendations = {
+    "hyperparameters": ["max_depth", "min_samples_split", "n_estimators"],
+    "validation": ["out_of_bag", "feature_importance"],
+    "diagnostics": ["tree_visualization", "partial_dependence"]
+}
+```
+
+**Properties:**
+- **Actionable:** Specific steps to address identified issues
+- **Prioritized:** Critical issues addressed first
+- **Traceable:** Clear reasoning for each recommendation
+- **Measurable:** Success criteria for each suggested action
 
 ---
 
